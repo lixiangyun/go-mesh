@@ -5,24 +5,37 @@ import (
 	"log"
 	"net"
 	"sync"
+	"sync/atomic"
 )
 
 type connect struct {
-	id   int
-	conn net.Conn
+	sessionID uint32
+	conn1     net.Conn
+	conn2     net.Conn
 }
 
 type TcpProxy struct {
 	ListenAddr string
 	RemoteAddr string
 
-	session int
+	listen    net.Listener
+	sessionID uint32
+	connbuf   map[uint32]*connect
+	sync.RWMutex
 
-	conn map[int]connect
+	stop chan struct{}
 }
 
 func NewTcpProxy(local string, remote string) *TcpProxy {
-	return &TcpProxy{ListenAddr: local, RemoteAddr: remote}
+
+	proxy := &TcpProxy{ListenAddr: local, RemoteAddr: remote}
+
+	proxy.connbuf = make(map[uint32]*connect)
+	proxy.stop = make(chan struct{}, 1)
+
+	go proxy.Start()
+
+	return proxy
 }
 
 func writeFull(conn net.Conn, buf []byte) error {
@@ -70,31 +83,45 @@ func tcpChannel(localconn net.Conn, remoteconn net.Conn, wait *sync.WaitGroup) {
 }
 
 // tcp代理处理
-func tcpProxyProcess(localconn net.Conn, remoteconn net.Conn) {
+func (t *TcpProxy) tcpProxyProcess(wait *sync.WaitGroup, conn *connect) {
 
 	syncSem := new(sync.WaitGroup)
 
-	log.Println("new connect. ", localconn.RemoteAddr(), " -> ", remoteconn.RemoteAddr())
+	defer wait.Done()
+
+	log.Println("new connect. ", conn.conn1.RemoteAddr(), " -> ", conn.conn2.RemoteAddr())
 
 	syncSem.Add(2)
 
-	go tcpChannel(localconn, remoteconn, syncSem)
-	go tcpChannel(remoteconn, localconn, syncSem)
+	go tcpChannel(conn.conn1, conn.conn2, syncSem)
+	go tcpChannel(conn.conn2, conn.conn1, syncSem)
 
 	syncSem.Wait()
 
-	log.Println("close connect. ", localconn.RemoteAddr(), " -> ", remoteconn.RemoteAddr())
+	t.Lock()
+	t.connbuf[conn.sessionID] = nil
+	t.Unlock()
+
+	log.Println("close connect. ", conn.conn1.RemoteAddr(), " -> ", conn.conn2.RemoteAddr())
 }
 
 // 正向tcp代理启动和处理入口
-func (t *TcpProxy) Start() error {
+func (t *TcpProxy) Start() {
+
+	var wait sync.WaitGroup
 
 	listen, err := net.Listen("tcp", t.ListenAddr)
 	if err != nil {
-		return err
+		log.Println(err.Error())
+		return
 	}
 
+	t.listen = listen
+
 	for {
+
+		session := atomic.AddUint32(&t.sessionID, 1)
+
 		localconn, err := listen.Accept()
 		if err != nil {
 			log.Println(err.Error())
@@ -108,12 +135,30 @@ func (t *TcpProxy) Start() error {
 			continue
 		}
 
-		go tcpProxyProcess(localconn, remoteconn)
+		newconn := &connect{conn1: localconn, conn2: remoteconn, sessionID: session}
+
+		t.Lock()
+		t.connbuf[session] = newconn
+		t.Unlock()
+
+		wait.Add(1)
+
+		go t.tcpProxyProcess(&wait, newconn)
 	}
 
-	return nil
+	wait.Wait()
+
+	t.stop <- struct{}{}
+	t.listen = nil
 }
 
 func (t *TcpProxy) Close() {
+	t.listen.Close()
 
+	for _, v := range t.connbuf {
+		v.conn1.Close()
+		v.conn2.Close()
+	}
+
+	<-t.stop
 }
