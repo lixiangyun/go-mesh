@@ -156,8 +156,10 @@ func (t *TcpProxy) Close() {
 	t.listen.Close()
 
 	for _, v := range t.connbuf {
-		v.conn1.Close()
-		v.conn2.Close()
+		if v != nil {
+			v.conn1.Close()
+			v.conn2.Close()
+		}
 	}
 
 	<-t.stop
