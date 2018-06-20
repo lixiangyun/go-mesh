@@ -49,7 +49,7 @@ func (h *HttpProxy) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 	resp.Body.Close()
 }
 
-func NewHttpProcy(addr string, servername string) *HttpProxy {
+func NewHttpProxy(addr string, servername string) *HttpProxy {
 	proxy := new(HttpProxy)
 
 	proxy.Addr = addr
