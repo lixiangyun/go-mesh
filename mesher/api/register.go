@@ -29,6 +29,18 @@ type SvcBase struct {
 	Instance []SvcInstance `json:"instance"`
 }
 
+func InstanceToAddr(instances []SvcInstance, addrtype int) []string {
+	addrs := make([]string, 0)
+	for _, inst := range instances {
+		for _, edp := range inst.Array {
+			if edp.Type == addrtype {
+				addrs = append(addrs, edp.Addr)
+			}
+		}
+	}
+	return addrs
+}
+
 func InstanceCompare(a, b SvcInstance) bool {
 
 	if a.ID != b.ID {

@@ -22,7 +22,7 @@ type SvcCluster struct {
 type OutChannel struct {
 	Proxy proxy.PROXY
 	Lbe   lb.LBE
-	Svc   []SvcCluster
+	Svc   []*SvcCluster
 }
 
 type InChannel struct {
@@ -46,6 +46,8 @@ type ProxyMap struct {
 var gLocalIp []string
 
 var gProxyMap ProxyMap
+
+var gControlerAddr string
 
 func init() {
 
@@ -147,11 +149,43 @@ func NewInChannel(in api.InStream) *InChannel {
 	return nil
 }
 
+func NewSvcCluster(svccfg api.Server) *SvcCluster {
+
+	instances, err := api.ServerQuery(gControlerAddr, svccfg.Svc)
+	if err != nil {
+		log.Println(err.Error())
+		return nil
+	}
+
+	svcCluster := new(SvcCluster)
+	svcCluster.Svc = svccfg.Svc
+	svcCluster.Instance = instances
+	svcCluster.Addr = api.InstanceToAddr(instances, 0)
+
+	selectlist := make([]interface{}, len(svcCluster.Addr))
+
+	for i := 0; i < len(svcCluster.Addr); i++ {
+		selectlist[i] = &svcCluster.Addr[i]
+	}
+
+	svcCluster.Lbe = lb.NewLB(svccfg.Lb, selectlist)
+
+	return svcCluster
+}
+
 func NewOutChannel(in api.OutStream) *OutChannel {
 
 	channel := new(OutChannel)
+	channel.Svc = make([]*SvcCluster, 0)
 
 	// 服务集群信息
+	for _, svccfg := range in.Svc {
+		svccluster := NewSvcCluster(svccfg)
+		if svccluster == nil {
+			continue
+		}
+		channel.Svc = append(channel.Svc, svccluster)
+	}
 
 	selectlist := make([]interface{}, len(channel.Svc))
 	for i := 0; i < len(channel.Svc); i++ {
@@ -199,6 +233,8 @@ func MesherStart(name, version string, addr string) {
 
 	var errcnt int
 
+	gControlerAddr = addr
+
 	svctype := api.SvcType{Name: name, Version: version}
 	gProxyMap.Svc = svctype
 
@@ -211,7 +247,7 @@ func MesherStart(name, version string, addr string) {
 			return
 		}
 
-		proxycfg, err := api.LoadProxyCfg(addr, svctype)
+		proxycfg, err := api.LoadProxyCfg(gControlerAddr, svctype)
 		if err != nil {
 			log.Println(err.Error())
 			errcnt++
@@ -226,7 +262,7 @@ func MesherStart(name, version string, addr string) {
 			gProxyMap.Instance = instance
 		}
 
-		err = api.ServerRegister(addr, svctype, instance)
+		err = api.ServerRegister(gControlerAddr, svctype, instance)
 		if err != nil {
 			log.Println(err.Error())
 			errcnt++
