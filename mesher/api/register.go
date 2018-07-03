@@ -20,13 +20,61 @@ type EndPoint struct {
 }
 
 type SvcInstance struct {
-	ID  string     `json:"instanceid"`
-	Edp []EndPoint `json:"endpoint"`
+	ID    string     `json:"instanceid"`
+	Array []EndPoint `json:"endpoint"`
 }
 
-type SvcQuery struct {
+type SvcBase struct {
 	Server   SvcType       `json:"server"`
 	Instance []SvcInstance `json:"instance"`
+}
+
+func InstanceCompare(a, b SvcInstance) bool {
+
+	if a.ID != b.ID {
+		return false
+	}
+
+	if len(a.Array) != len(b.Array) {
+		return false
+	}
+
+	for _, av := range a.Array {
+		var bfound bool
+		for _, bv := range b.Array {
+			if av == bv {
+				bfound = true
+				break
+			}
+		}
+		if bfound == false {
+			return false
+		}
+	}
+
+	return true
+}
+
+func InstanceArrayCompare(a, b []SvcInstance) bool {
+
+	if len(a) != len(b) {
+		return false
+	}
+
+	for _, av := range a {
+		var bfound bool
+		for _, bv := range b {
+			if InstanceCompare(av, bv) {
+				bfound = true
+				break
+			}
+		}
+		if bfound == false {
+			return false
+		}
+	}
+
+	return true
 }
 
 func ServerRegister(addr string, svctype SvcType, inst SvcInstance) error {
@@ -54,6 +102,8 @@ func ServerRegister(addr string, svctype SvcType, inst SvcInstance) error {
 			svctype.Name, svctype.Version, rsp.Status)
 		return errors.New(errstr)
 	}
+
+	defer rsp.Body.Close()
 
 	body, err = ioutil.ReadAll(rsp.Body)
 	if err != nil {
@@ -90,12 +140,14 @@ func ServerQuery(addr string, svctype SvcType) ([]SvcInstance, error) {
 		return nil, errors.New(errstr)
 	}
 
+	defer rsp.Body.Close()
+
 	body, err := ioutil.ReadAll(rsp.Body)
 	if err != nil {
 		return nil, err
 	}
 
-	svcquery := new(SvcQuery)
+	svcquery := &SvcBase{Instance: make([]SvcInstance, 0)}
 
 	err = json.Unmarshal(body, &svcquery)
 	if err != nil {

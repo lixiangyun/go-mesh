@@ -9,20 +9,20 @@ import (
 )
 
 type HttpProxy struct {
-	Server string
-	Addr   string
-	Svc    *http.Server
+	Fun  SELECT_ADDR
+	Addr string
+	Svc  *http.Server
 }
 
 func (h *HttpProxy) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 
 	//fmt.Printf("Received request %s %s %s\n", req.Method, req.Host, req.RemoteAddr)
 
-	//fmt.Println(req.URL.Path)
+	redirect := h.Fun()
 
 	// step 1
-	req.Host = h.Server
-	req.RequestURI = "http://" + h.Server + "/" + req.URL.Path
+	req.Host = redirect
+	req.RequestURI = "http://" + redirect + "/" + req.URL.Path
 
 	req.URL, _ = url.Parse(req.RequestURI)
 
@@ -49,11 +49,11 @@ func (h *HttpProxy) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 	resp.Body.Close()
 }
 
-func NewHttpProxy(addr string, servername string) *HttpProxy {
+func NewHttpProxy(addr string, fun SELECT_ADDR) *HttpProxy {
 	proxy := new(HttpProxy)
 
 	proxy.Addr = addr
-	proxy.Server = servername
+	proxy.Fun = fun
 
 	lis, err := net.Listen("tcp", proxy.Addr)
 	if err != nil {
@@ -70,8 +70,4 @@ func NewHttpProxy(addr string, servername string) *HttpProxy {
 
 func (h *HttpProxy) Close() {
 	h.Svc.Close()
-}
-
-func HttpFilter(req *http.Request) {
-
 }

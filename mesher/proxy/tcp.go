@@ -16,7 +16,7 @@ type connect struct {
 
 type TcpProxy struct {
 	ListenAddr string
-	RemoteAddr string
+	SelectAddr SELECT_ADDR
 
 	listen    net.Listener
 	sessionID uint32
@@ -26,14 +26,14 @@ type TcpProxy struct {
 	stop chan struct{}
 }
 
-func NewTcpProxy(local string, remote string) *TcpProxy {
+func NewTcpProxy(addr string, fun SELECT_ADDR) *TcpProxy {
 
-	proxy := &TcpProxy{ListenAddr: local, RemoteAddr: remote}
+	proxy := &TcpProxy{ListenAddr: addr, SelectAddr: fun}
 
 	proxy.connbuf = make(map[uint32]*connect)
 	proxy.stop = make(chan struct{}, 1)
 
-	go proxy.Start()
+	go proxy.start()
 
 	return proxy
 }
@@ -106,7 +106,7 @@ func (t *TcpProxy) tcpProxyProcess(wait *sync.WaitGroup, conn *connect) {
 }
 
 // 正向tcp代理启动和处理入口
-func (t *TcpProxy) Start() {
+func (t *TcpProxy) start() {
 
 	var wait sync.WaitGroup
 
@@ -128,7 +128,7 @@ func (t *TcpProxy) Start() {
 			continue
 		}
 
-		remoteconn, err := net.Dial("tcp", t.RemoteAddr)
+		remoteconn, err := net.Dial("tcp", t.SelectAddr())
 		if err != nil {
 			log.Println(err.Error())
 			localconn.Close()

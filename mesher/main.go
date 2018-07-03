@@ -21,7 +21,7 @@ func init() {
 
 	flag.BoolVar(&h, "h", false, "this help.")
 
-	// �ı�Ĭ�ϵ� Usage
+	// 改变默认的 Usage
 	flag.Usage = usage
 }
 

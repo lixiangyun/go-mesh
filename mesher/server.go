@@ -5,31 +5,42 @@ import (
 	"log"
 	"net"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/lixiangyun/go-mesh/mesher/api"
 	"github.com/lixiangyun/go-mesh/mesher/lb"
-	//	"github.com/lixiangyun/go-mesh/mesher/proxy"
+	"github.com/lixiangyun/go-mesh/mesher/proxy"
 )
 
-type Server struct {
-	Type     api.SvcType
+type SvcCluster struct {
+	Svc      api.SvcType
 	Instance []api.SvcInstance
+	Addr     []string
 	Lbe      lb.LBE
 }
 
-type ProxyChannel struct {
-	Before api.ProxyCfg
-	Addr   string
-	Lbe    lb.LBE
-	Svc    []Server
-	Stop   chan struct{}
+type OutChannel struct {
+	Proxy proxy.PROXY
+	Lbe   lb.LBE
+	Svc   []SvcCluster
+}
+
+type InChannel struct {
+	Proxy proxy.PROXY
+	Lbe   lb.LBE
+	Addr  []string
 }
 
 type ProxyMap struct {
-	sync.RWMutex
-	Run map[string]ProxyChannel
+	Cfg api.ProxyCfg
+
+	InChan  map[string]*InChannel
+	OutChan map[string]*OutChannel
+
+	Svc      api.SvcType     // 本服务类型信息
+	Instance api.SvcInstance // 本服务实例信息
+
+	DepInstance map[api.SvcType][]api.SvcInstance // 依赖的服务实例信息缓存
 }
 
 var gLocalIp []string
@@ -37,8 +48,13 @@ var gLocalIp []string
 var gProxyMap ProxyMap
 
 func init() {
+
 	gLocalIp = getLocalIp()
-	gProxyMap.Run = make(map[string]ProxyChannel, 10)
+
+	gProxyMap.InChan = make(map[string]*InChannel, 0)
+	gProxyMap.OutChan = make(map[string]*OutChannel, 0)
+
+	gProxyMap.DepInstance = make(map[api.SvcType][]api.SvcInstance, 0)
 }
 
 func getLocalIp() []string {
@@ -62,6 +78,22 @@ func getLocalIp() []string {
 	return IpAddr
 }
 
+func (s *SvcCluster) SelectAddr() string {
+	addr := s.Lbe.Select()
+	return *(addr.(*string))
+}
+
+func (in *InChannel) SelectAddr() string {
+	addr := in.Lbe.Select()
+	return *(addr.(*string))
+}
+
+func (out *OutChannel) SelectAddr() string {
+	selector := out.Lbe.Select()
+	svc := selector.(*SvcCluster)
+	return svc.SelectAddr()
+}
+
 // 如果监听地址为 :8080 ，即没有指定IP地址。则添加本地地址做为IP地址。
 func parseEndpoint(addr string) []string {
 
@@ -79,93 +111,88 @@ func parseEndpoint(addr string) []string {
 }
 
 // 进入的流量地址，属于该微服务的endpoint地址
+func getInstreamEndpoint(inlist []api.InStream) []api.EndPoint {
 
-func getInstreamEndpoint(proxycfg []api.ProxyCfg) []api.EndPoint {
 	endpoints := make([]api.EndPoint, 0)
 
-	for _, proxy := range proxycfg {
-		if proxy.ProxyType != api.PROXY_IN {
-			continue
-		}
+	for _, in := range inlist {
 
-		endpointtmp := parseEndpoint(proxy.Addr)
+		endpointtmp := parseEndpoint(in.Addr)
 		if len(endpointtmp) != 0 {
 			for _, addr := range endpointtmp {
 				endpoints = append(endpoints, api.EndPoint{Addr: addr})
 			}
 		} else {
-			endpoints = append(endpoints, api.EndPoint{Addr: proxy.Addr})
+			endpoints = append(endpoints, api.EndPoint{Addr: in.Addr})
 		}
 	}
 
 	return endpoints
 }
 
-func NewProxyChanel(proxy ProxyChannel) error {
+func NewInChannel(in api.InStream) *InChannel {
+
+	channel := new(InChannel)
+	channel.Addr = in.Local
+
+	selectlist := make([]interface{}, len(channel.Addr))
+
+	for i := 0; i < len(channel.Addr); i++ {
+		selectlist[i] = &channel.Addr[i]
+	}
+
+	channel.Lbe = lb.NewLB(in.LB, selectlist)
+	channel.Proxy = proxy.NewProxy(in.Protocal, in.Addr, channel.SelectAddr)
 
 	return nil
 }
 
-func DelProxyChanel(proxy ProxyChannel) error {
-	proxy.Stop <- struct{}{}
-	delete(gProxyMap.Run, proxy.Addr)
+func NewOutChannel(in api.OutStream) *OutChannel {
+
+	channel := new(OutChannel)
+
+	// 服务集群信息
+
+	selectlist := make([]interface{}, len(channel.Svc))
+	for i := 0; i < len(channel.Svc); i++ {
+		selectlist[i] = &channel.Svc[i]
+	}
+
+	channel.Lbe = lb.NewLB(in.LB, selectlist)
+	channel.Proxy = proxy.NewProxy(in.Protocal, in.Addr, channel.SelectAddr)
+
 	return nil
 }
 
-func IsSameProxyCfg(a, b api.ProxyCfg) bool {
+func UpdateProxyChanel(proxycfg *api.ProxyCfg) error {
 
-	if a.Addr != b.Addr || a.LB != b.LB {
-		return false
+	if api.ProxyCfgCompare(gProxyMap.Cfg, *proxycfg) {
+
+		log.Println("proxy cfg not change!")
+		return nil
 	}
 
-	if a.Protocal != b.Protocal || a.ProxyType != b.ProxyType {
-		return false
-	}
+	for _, InStream := range proxycfg.In {
 
-	if len(a.Service) != len(b.Service) {
-		return false
-	}
-
-	for idx, av := range a.Service {
-		if b.Service[idx] != av {
-			return false
-		}
-	}
-
-	return true
-}
-
-func UpdateProxyChanel(proxycfg []api.ProxyCfg) error {
-
-	var err error
-
-	for _, proxy := range proxycfg {
-
-		channel, b := gProxyMap.Run[proxy.Addr]
+		channel, b := gProxyMap.InChan[InStream.Addr]
 		if b == false {
-
-			channel = ProxyChannel{Before: proxy}
-			err = NewProxyChanel(channel)
-			if err != nil {
-				return err
-			}
-
+			channel = NewInChannel(InStream)
+			gProxyMap.InChan[InStream.Addr] = channel
 			continue
 		}
-
-		if IsSameProxyCfg(channel.Before, proxy) {
-			log.Println("proxy cfg not change!")
-			continue
-		}
-
-		// 简单处理，后续可以考虑如何优化升级
-		DelProxyChanel(channel)
-
-		channel.Before = proxy
-		NewProxyChanel(channel)
 	}
 
-	return err
+	for _, OutStream := range proxycfg.Out {
+
+		channel, b := gProxyMap.OutChan[OutStream.Addr]
+		if b == false {
+			channel = NewOutChannel(OutStream)
+			gProxyMap.OutChan[OutStream.Addr] = channel
+			continue
+		}
+	}
+
+	return nil
 }
 
 func MesherStart(name, version string, addr string) {
@@ -173,6 +200,7 @@ func MesherStart(name, version string, addr string) {
 	var errcnt int
 
 	svctype := api.SvcType{Name: name, Version: version}
+	gProxyMap.Svc = svctype
 
 	for {
 
@@ -183,16 +211,20 @@ func MesherStart(name, version string, addr string) {
 			return
 		}
 
-		proxycfg, err := api.GetProxyCfg(addr, svctype)
+		proxycfg, err := api.LoadProxyCfg(addr, svctype)
 		if err != nil {
 			log.Println(err.Error())
 			errcnt++
 			continue
 		}
 
-		endpoint := getInstreamEndpoint(proxycfg)
+		endpoint := getInstreamEndpoint(proxycfg.In)
 
-		instance := api.SvcInstance{Edp: endpoint}
+		instance := api.SvcInstance{Array: endpoint}
+
+		if !api.InstanceCompare(gProxyMap.Instance, instance) {
+			gProxyMap.Instance = instance
+		}
 
 		err = api.ServerRegister(addr, svctype, instance)
 		if err != nil {
