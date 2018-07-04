@@ -37,12 +37,14 @@ func TcpSend(addr string, body string) string {
 
 	defer conn.Close()
 
+	conn.SetDeadline(time.Now().Add(1 * time.Second))
 	_, err = conn.Write([]byte(body))
 	if err != nil {
 		log.Println(err.Error())
 		return ""
 	}
 
+	conn.SetDeadline(time.Now().Add(1 * time.Second))
 	cnt, err := conn.Read(recvbuf[:])
 	if err != nil {
 		log.Println(err.Error())
