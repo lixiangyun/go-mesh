@@ -16,6 +16,9 @@ func NewLBRandmod(list []interface{}) LBE {
 }
 
 func (rr *LBRandmod) Select() interface{} {
+	if len(rr.Array) == 0 {
+		return nil
+	}
 	Index := rand.Int31() % int32(len(rr.Array))
 	return rr.Array[Index]
 }

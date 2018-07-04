@@ -154,15 +154,14 @@ func NewInChannel(in api.InStream) *InChannel {
 }
 
 func NewSvcCluster(svccfg api.Server) *SvcCluster {
+	svcCluster := new(SvcCluster)
+	svcCluster.Svc = svccfg.Svc
 
 	instances, err := api.ServerQuery(gControlerAddr, svccfg.Svc)
 	if err != nil {
 		log.Printf("server(%v) query failed! (%s)", svccfg.Svc, err.Error())
-		return nil
 	}
 
-	svcCluster := new(SvcCluster)
-	svcCluster.Svc = svccfg.Svc
 	svcCluster.Instance = instances
 	svcCluster.Addr = api.InstanceToAddr(instances, 0)
 
@@ -173,7 +172,6 @@ func NewSvcCluster(svccfg api.Server) *SvcCluster {
 	}
 
 	svcCluster.Lbe = lb.NewLB(svccfg.LB, selectlist)
-
 	return svcCluster
 }
 
@@ -206,36 +204,66 @@ func NewOutChannel(in api.OutStream) *OutChannel {
 	return channel
 }
 
-func UpdateProxyChanel(proxycfg *api.ProxyCfg) error {
+func FlashSvcCluster(svcCluster *SvcCluster) {
 
-	if api.ProxyCfgCompare(gProxyMap.Cfg, *proxycfg) {
-		//log.Println("proxy cfg not change!")
-		return nil
+	instances, err := api.ServerQuery(gControlerAddr, svcCluster.Svc)
+	if err != nil {
+		log.Printf("server(%v) query failed! (%s)", svcCluster.Svc, err.Error())
+		return
 	}
 
-	gProxyMap.Cfg = *proxycfg
+	if api.InstanceArrayCompare(svcCluster.Instance, instances) {
+		return
+	}
+
+	svcCluster.Instance = instances
+	svcCluster.Addr = api.InstanceToAddr(instances, 0)
+
+	selectlist := make([]interface{}, len(svcCluster.Addr))
+
+	for i := 0; i < len(svcCluster.Addr); i++ {
+		selectlist[i] = &svcCluster.Addr[i]
+	}
+
+	svcCluster.Lbe.ReFlash(selectlist)
+}
+
+func FlashOutChannel(channel *OutChannel) {
+
+	// 更新服务集群的实例信息
+	for idx, _ := range channel.Svc {
+		FlashSvcCluster(&channel.Svc[idx])
+	}
+}
+
+func UpdateProxyChanel(proxycfg *api.ProxyCfg) error {
 
 	for _, InStream := range proxycfg.In {
-
 		channel, b := gProxyMap.InChan[InStream.Addr]
-		if b == false {
-			channel = NewInChannel(InStream)
-			gProxyMap.InChan[InStream.Addr] = channel
+		if b == true {
 			continue
+		}
+		channel = NewInChannel(InStream)
+		if channel != nil {
+			gProxyMap.InChan[InStream.Addr] = channel
 		}
 	}
 
 	for _, OutStream := range proxycfg.Out {
-
 		channel, b := gProxyMap.OutChan[OutStream.Addr]
-		if b == false {
-			channel = NewOutChannel(OutStream)
-			gProxyMap.OutChan[OutStream.Addr] = channel
+		if b == true {
+			FlashOutChannel(channel)
 			continue
+		}
+		channel = NewOutChannel(OutStream)
+		if channel != nil {
+			gProxyMap.OutChan[OutStream.Addr] = channel
 		}
 	}
 
-	log.Println("finish update proxy!")
+	gProxyMap.Cfg = *proxycfg
+
+	log.Println("update proxy success!")
 
 	return nil
 }
@@ -267,17 +295,18 @@ func MesherStart(name, version string, addr string) {
 
 		endpoint := getInstreamEndpoint(proxycfg.In)
 
-		instance := api.SvcInstance{Array: endpoint}
-
-		if !api.InstanceCompare(gProxyMap.Instance, instance) {
-			gProxyMap.Instance = instance
-		}
+		instance := &api.SvcInstance{ID: gProxyMap.Instance.ID, Array: endpoint}
 
 		err = api.ServerRegister(gControlerAddr, svctype, instance)
 		if err != nil {
 			log.Println("server register failed! ", err.Error())
 			errcnt++
 			continue
+		}
+
+		if !api.InstanceCompare(gProxyMap.Instance, *instance) {
+			log.Println("get instance ", instance.ID)
+			gProxyMap.Instance = *instance
 		}
 
 		err = UpdateProxyChanel(proxycfg)

@@ -18,6 +18,9 @@ func NewLBRR(list []interface{}) LBE {
 }
 
 func (rr *LBRR) Select() interface{} {
+	if len(rr.Array) == 0 {
+		return nil
+	}
 	before := atomic.AddInt32(&rr.Index, 1)
 	before = before % int32(len(rr.Array))
 	return rr.Array[before]

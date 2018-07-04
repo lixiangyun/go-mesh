@@ -12,6 +12,9 @@ func NewLBNONE(list []interface{}) LBE {
 }
 
 func (rr *LBNONE) Select() interface{} {
+	if len(rr.Array) == 0 {
+		return nil
+	}
 	return rr.Array[0]
 }
 

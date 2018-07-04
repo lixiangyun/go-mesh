@@ -89,7 +89,7 @@ func InstanceArrayCompare(a, b []SvcInstance) bool {
 	return true
 }
 
-func ServerRegister(addr string, svctype SvcType, inst SvcInstance) error {
+func ServerRegister(addr string, svctype SvcType, inst *SvcInstance) error {
 
 	body, err := json.Marshal(inst)
 	if err != nil {
@@ -116,6 +116,16 @@ func ServerRegister(addr string, svctype SvcType, inst SvcInstance) error {
 	}
 
 	defer rsp.Body.Close()
+
+	body, err = ioutil.ReadAll(rsp.Body)
+	if err != nil {
+		return err
+	}
+
+	err = json.Unmarshal(body, inst)
+	if err != nil {
+		return err
+	}
 
 	return nil
 }

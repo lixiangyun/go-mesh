@@ -24,8 +24,15 @@
 						"version": "1.0.0"
 					},
 					"policy": "random"
+				},
+				{
+					"type": {
+						"servername": "demohttp",
+						"version": "1.0.1"
+					},
+					"policy": "random"
 				}],
-				"policy": "random"
+				"policy": "roundrobin"
 			}],
 			"in": [{
 				"protocal": "tcp",
@@ -55,13 +62,24 @@
 		}
 	},
 	{
+		"name": "demohttp",
+		"version": "1.0.1",
+		"proxycfg": {
+			"in": [{
+				"protocal": "http",
+				"listen": ":9000",
+				"local": ["127.0.0.1:9001"]
+			}]
+		}
+	},
+	{
 		"name": "demotcp",
 		"version": "1.0.0",
 		"proxycfg": {
 			"in": [{
-				"protocal": "tcp",
-				"listen": ":9000",
-				"local": ["127.0.0.1:9001"]
+				"protocal": "http",
+				"listen": ":10000",
+				"local": ["127.0.0.1:10001"]
 			}]
 		}
 	}]

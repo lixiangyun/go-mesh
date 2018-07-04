@@ -7,13 +7,16 @@ import (
 	"log"
 	"math/rand"
 	"net/http"
+	"sync/atomic"
 
 	"github.com/lixiangyun/go-mesh/mesher/api"
 )
 
 var gSvcAll map[api.SvcType]*api.SvcBase
+var gInstanceID uint32
 
 func init() {
+
 	gSvcAll = make(map[api.SvcType]*api.SvcBase, 0)
 }
 
@@ -25,12 +28,38 @@ func NewServerBase(svc api.SvcType) *api.SvcBase {
 }
 
 func UUID() string {
-	return fmt.Sprintf("%s%s", rand.Uint64(), rand.Uint64())
+	return fmt.Sprintf("%08x%08x", rand.Uint32(), atomic.AddUint32(&gInstanceID, 1))
 }
 
-func ServerAddInstance(s *api.SvcBase, inst api.SvcInstance) {
-	inst.ID = UUID()
+func ServerAddInstance(s *api.SvcBase, inst api.SvcInstance) api.SvcInstance {
+
+	if inst.ID == "" {
+		inst.ID = UUID()
+		s.Instance = append(s.Instance, inst)
+		log.Printf("new instance (%s) success!\r\n", inst.ID)
+		return inst
+	}
+
+	for idx, _ := range s.Instance {
+
+		if s.Instance[idx].ID != inst.ID {
+			continue
+		}
+
+		if api.InstanceCompare(s.Instance[idx], inst) {
+			log.Printf("heartbeat instance (%s) success!\r\n", inst.ID)
+		} else {
+			s.Instance[idx].Array = make([]api.EndPoint, len(inst.Array))
+			copy(s.Instance[idx].Array, inst.Array)
+			log.Printf("update instance (%s) success!\r\n", inst.ID)
+		}
+		return inst
+	}
+
 	s.Instance = append(s.Instance, inst)
+	log.Printf("add instance (%s) success!\r\n", inst.ID)
+
+	return inst
 }
 
 func ServerRegisterHandler(rw http.ResponseWriter, req *http.Request) {
@@ -39,7 +68,7 @@ func ServerRegisterHandler(rw http.ResponseWriter, req *http.Request) {
 	serverversion := req.Header.Get("X-Server-Version")
 
 	if servername == "" || serverversion == "" {
-		err := fmt.Sprintf("have not found server name & version in request header!\r\n")
+		err := fmt.Sprintf("have not found \"X-Server-Name\" or \"X-Server-Version\" in request header!\r\n")
 		http.Error(rw, err, http.StatusBadRequest)
 		log.Println(err)
 		return
@@ -76,7 +105,7 @@ func ServerRegisterHandler(rw http.ResponseWriter, req *http.Request) {
 		gSvcAll[svc] = svcbase
 	}
 
-	ServerAddInstance(svcbase, instance)
+	instance = ServerAddInstance(svcbase, instance)
 
 	body, err = json.Marshal(&instance)
 	if err != nil {
@@ -92,7 +121,7 @@ func ServerRegisterHandler(rw http.ResponseWriter, req *http.Request) {
 		log.Println("write to body not finish!")
 	}
 
-	log.Printf("server (%v) register success! (%v)\r\n", svc, instance)
+	log.Printf("server (%s %s) register/update/heartbeat success!\r\n", svc.Name, svc.Version)
 }
 
 func ServerQueryHandler(rw http.ResponseWriter, req *http.Request) {
@@ -101,7 +130,7 @@ func ServerQueryHandler(rw http.ResponseWriter, req *http.Request) {
 	serverversion := req.Header.Get("X-Server-Version")
 
 	if servername == "" || serverversion == "" {
-		err := fmt.Sprintf("have not found server name & version in request header!\r\n")
+		err := fmt.Sprintf("have not found \"X-Server-Name\" or \"X-Server-Version\" in request header!\r\n")
 		http.Error(rw, err, http.StatusBadRequest)
 		log.Println(err)
 		return
@@ -117,7 +146,7 @@ func ServerQueryHandler(rw http.ResponseWriter, req *http.Request) {
 
 	svcInstance, b := gSvcAll[svc]
 	if b == false {
-		err := fmt.Sprintf("can not found (%v) svc instance on db base!\r\n", svc)
+		err := fmt.Sprintf("can not found (%s %s) svc instance on db base!\r\n", svc.Name, svc.Version)
 		http.Error(rw, err, http.StatusNotFound)
 		log.Println(err)
 		return
@@ -139,5 +168,5 @@ func ServerQueryHandler(rw http.ResponseWriter, req *http.Request) {
 		log.Println("write to body not finish!")
 	}
 
-	log.Printf("server (%v) query success!\r\n", svc)
+	log.Printf("server (%s %s) query success!\r\n", svc.Name, svc.Version)
 }

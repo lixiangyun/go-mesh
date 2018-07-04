@@ -24,19 +24,20 @@ var gProxyCfgMap map[api.SvcType]*api.ProxyCfg
 
 func init() {
 	gProxyCfgMap = make(map[api.SvcType]*api.ProxyCfg, 100)
+}
 
-	body, err := ioutil.ReadFile("config.json")
+func ProxyCfgLoadFromFile(filename string) error {
+
+	body, err := ioutil.ReadFile(filename)
 	if err != nil {
-		log.Println(err.Error())
-		return
+		return err
 	}
 
 	var cfgall CfgFromFile
 
 	err = json.Unmarshal(body, &cfgall)
 	if err != nil {
-		log.Println(err.Error())
-		return
+		return err
 	}
 
 	for idx, cfgv := range cfgall.Items {
@@ -45,8 +46,11 @@ func init() {
 	}
 
 	for svc, _ := range gProxyCfgMap {
-		fmt.Printf("load server(%v) proxy cfg from file success!\r\n", svc)
+		fmt.Printf("load server(%s %s) proxy cfg from file success!\r\n",
+			svc.Name, svc.Version)
 	}
+
+	return nil
 }
 
 func ProxyCfgHandler(rw http.ResponseWriter, req *http.Request) {
@@ -55,7 +59,7 @@ func ProxyCfgHandler(rw http.ResponseWriter, req *http.Request) {
 	serverversion := req.Header.Get("X-Server-Version")
 
 	if servername == "" || serverversion == "" {
-		err := fmt.Sprintf("have not found server name & version in request header!\r\n")
+		err := fmt.Sprintf("have not found \"X-Server-Name\" or \"X-Server-Version\" in request header!\r\n")
 		http.Error(rw, err, http.StatusBadRequest)
 		log.Println(err)
 		return
@@ -66,7 +70,7 @@ func ProxyCfgHandler(rw http.ResponseWriter, req *http.Request) {
 
 		proxycfg, b := gProxyCfgMap[svc]
 		if b == false {
-			err := fmt.Sprintf("can not found (%v) proxy cfg on db base!\r\n", svc)
+			err := fmt.Sprintf("can not found (%s %s) proxy cfg on db base!\r\n", svc.Name, svc.Version)
 			http.Error(rw, err, http.StatusNotFound)
 			log.Println(err)
 			return
@@ -88,7 +92,7 @@ func ProxyCfgHandler(rw http.ResponseWriter, req *http.Request) {
 			log.Println("write to body not finish!")
 		}
 
-		log.Printf("server (%v) get proxy cfg success!\r\n", svc)
+		log.Printf("server (%s %s) get proxy cfg success!\r\n", svc.Name, svc.Version)
 
 	} else if req.Method == "POST" {
 
@@ -112,10 +116,10 @@ func ProxyCfgHandler(rw http.ResponseWriter, req *http.Request) {
 
 		rw.WriteHeader(http.StatusOK)
 
-		log.Printf("server (%v) post proxy cfg success!\r\n", svc)
+		log.Printf("server (%s %s) post proxy cfg success!\r\n", svc.Name, svc.Version)
 
 	} else {
-		err := fmt.Sprintf("method(%s) is invalid!\r\n", req.Method)
+		err := fmt.Sprintf("method (%s) is invalid!\r\n", req.Method)
 		http.Error(rw, err, http.StatusNotFound)
 		log.Println(err)
 	}
