@@ -5,59 +5,90 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
-	"math/rand"
 	"net/http"
-	"sync/atomic"
+	"sync"
+	"time"
 
 	"github.com/lixiangyun/go-mesh/mesher/api"
 )
 
-var gSvcAll map[api.SvcType]*api.SvcBase
-var gInstanceID uint32
+const (
+	INSTANCE_TIMEOUT = 3
+)
+
+type ServerInstance struct {
+	Svc       api.SvcType
+	Instances map[string]api.SvcInstance
+}
+
+type ServerBaseDB struct {
+	sync.Mutex
+
+	SvcList map[api.SvcType]*ServerInstance
+}
+
+var gSvcDB ServerBaseDB
 
 func init() {
-
-	gSvcAll = make(map[api.SvcType]*api.SvcBase, 0)
+	gSvcDB.SvcList = make(map[api.SvcType]*ServerInstance, 0)
 }
 
-func NewServerBase(svc api.SvcType) *api.SvcBase {
-	svcbase := new(api.SvcBase)
-	svcbase.Server = svc
-	svcbase.Instance = make([]api.SvcInstance, 0)
-	return svcbase
+func ServerCheckTimeout() {
+	go func() {
+
+		for {
+			gSvcDB.Lock()
+
+			instdel := make([]api.SvcInstance, 0)
+			newtime := time.Now()
+
+			for _, svc := range gSvcDB.SvcList {
+				for _, inst := range svc.Instances {
+					subtime := newtime
+					if subtime.Sub(inst.Time) >= time.Second*INSTANCE_TIMEOUT {
+						instdel = append(instdel, inst)
+					}
+				}
+				for _, inst := range instdel {
+					delete(svc.Instances, inst.ID)
+				}
+			}
+
+			gSvcDB.Unlock()
+
+			time.Sleep(1 * time.Second)
+		}
+	}()
 }
 
-func UUID() string {
-	return fmt.Sprintf("%08x%08x", rand.Uint32(), atomic.AddUint32(&gInstanceID, 1))
-}
+func (svcbase *ServerInstance) ServerAddInstance(inst api.SvcInstance) api.SvcInstance {
 
-func ServerAddInstance(s *api.SvcBase, inst api.SvcInstance) api.SvcInstance {
+	inst.Time = time.Now()
 
 	if inst.ID == "" {
-		inst.ID = UUID()
-		s.Instance = append(s.Instance, inst)
-		log.Printf("new instance (%s) success!\r\n", inst.ID)
-		return inst
+		for {
+			inst.ID = UUID()
+			_, b := svcbase.Instances[inst.ID]
+			if b == false {
+				svcbase.Instances[inst.ID] = inst
+				log.Printf("new instance (%s) success!\r\n", inst.ID)
+				return inst
+			}
+		}
 	}
 
-	for idx, _ := range s.Instance {
-
-		if s.Instance[idx].ID != inst.ID {
-			continue
-		}
-
-		if api.InstanceCompare(s.Instance[idx], inst) {
+	instold, b := svcbase.Instances[inst.ID]
+	if b == false {
+		log.Printf("add instance (%s) success!\r\n", inst.ID)
+	} else {
+		if api.InstanceCompare(instold, inst) {
 			log.Printf("heartbeat instance (%s) success!\r\n", inst.ID)
 		} else {
-			s.Instance[idx].Array = make([]api.EndPoint, len(inst.Array))
-			copy(s.Instance[idx].Array, inst.Array)
 			log.Printf("update instance (%s) success!\r\n", inst.ID)
 		}
-		return inst
 	}
 
-	s.Instance = append(s.Instance, inst)
-	log.Printf("add instance (%s) success!\r\n", inst.ID)
+	svcbase.Instances[inst.ID] = inst
 
 	return inst
 }
@@ -99,13 +130,17 @@ func ServerRegisterHandler(rw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	svcbase, b := gSvcAll[svc]
+	gSvcDB.Lock()
+	defer gSvcDB.Unlock()
+
+	svcbase, b := gSvcDB.SvcList[svc]
 	if b == false {
-		svcbase = NewServerBase(svc)
-		gSvcAll[svc] = svcbase
+		svcbase = &ServerInstance{Svc: svc}
+		svcbase.Instances = make(map[string]api.SvcInstance, 0)
+		gSvcDB.SvcList[svc] = svcbase
 	}
 
-	instance = ServerAddInstance(svcbase, instance)
+	instance = svcbase.ServerAddInstance(instance)
 
 	body, err = json.Marshal(&instance)
 	if err != nil {
@@ -144,7 +179,10 @@ func ServerQueryHandler(rw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	svcInstance, b := gSvcAll[svc]
+	gSvcDB.Lock()
+	defer gSvcDB.Unlock()
+
+	svcbase, b := gSvcDB.SvcList[svc]
 	if b == false {
 		err := fmt.Sprintf("can not found (%s %s) svc instance on db base!\r\n", svc.Name, svc.Version)
 		http.Error(rw, err, http.StatusNotFound)
@@ -152,7 +190,16 @@ func ServerQueryHandler(rw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	body, err := json.Marshal(&svcInstance)
+	Instances := make([]api.SvcInstance, len(svcbase.Instances))
+	var idx int
+	for _, inst := range svcbase.Instances {
+		Instances[idx] = inst
+		idx++
+	}
+
+	svcqurey := &api.SvcBase{Server: svc, Instance: Instances}
+
+	body, err := json.Marshal(&svcqurey)
 	if err != nil {
 		http.Error(rw, err.Error(), http.StatusInternalServerError)
 		log.Println(err.Error())

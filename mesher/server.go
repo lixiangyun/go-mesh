@@ -263,7 +263,7 @@ func UpdateProxyChanel(proxycfg *api.ProxyCfg) error {
 
 	gProxyMap.Cfg = *proxycfg
 
-	log.Println("update proxy success!")
+	//log.Println("update proxy success!")
 
 	return nil
 }

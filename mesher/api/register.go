@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"time"
 )
 
 type SvcType struct {
@@ -22,6 +23,7 @@ type EndPoint struct {
 type SvcInstance struct {
 	ID    string     `json:"instanceid"`
 	Array []EndPoint `json:"endpoint"`
+	Time  time.Time  `json:"-"`
 }
 
 type SvcBase struct {

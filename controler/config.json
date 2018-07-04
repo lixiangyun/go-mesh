@@ -33,20 +33,6 @@
 					"policy": "random"
 				}],
 				"policy": "roundrobin"
-			}],
-			"in": [{
-				"protocal": "tcp",
-				"listen": ":6000",
-				"local": ["127.0.0.1:6001",
-				"127.0.0.1:6002"],
-				"policy": "roundrobin"
-			},
-			{
-				"protocal": "http",
-				"listen": ":7000",
-				"local": ["127.0.0.1:7001",
-				"127.0.0.1:7002"],
-				"policy": "random"
 			}]
 		}
 	},
