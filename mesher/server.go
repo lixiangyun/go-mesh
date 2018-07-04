@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"log"
-	"net"
 	"strings"
 	"time"
 
@@ -43,15 +42,11 @@ type ProxyMap struct {
 	DepInstance map[api.SvcType][]api.SvcInstance // 依赖的服务实例信息缓存
 }
 
-var gLocalIp []string
-
 var gProxyMap ProxyMap
 
 var gControlerAddr string
 
 func init() {
-
-	gLocalIp = getLocalIp()
 
 	gProxyMap.InChan = make(map[string]*InChannel, 0)
 	gProxyMap.OutChan = make(map[string]*OutChannel, 0)
@@ -59,40 +54,28 @@ func init() {
 	gProxyMap.DepInstance = make(map[api.SvcType][]api.SvcInstance, 0)
 }
 
-func getLocalIp() []string {
-
-	IpAddr := make([]string, 0)
-
-	addrSlice, err := net.InterfaceAddrs()
-	if nil != err {
-		log.Println("Get local IP addr failed!!!")
-		return IpAddr
-	}
-
-	for _, addr := range addrSlice {
-		if ipnet, ok := addr.(*net.IPNet); ok && !ipnet.IP.IsLoopback() {
-			if nil != ipnet.IP.To4() {
-				IpAddr = append(IpAddr, ipnet.IP.String())
-			}
-		}
-	}
-
-	return IpAddr
-}
-
 func (s *SvcCluster) SelectAddr() string {
 	addr := s.Lbe.Select()
+	if addr == nil {
+		return ""
+	}
 	return *(addr.(*string))
 }
 
 func (in *InChannel) SelectAddr() string {
 	addr := in.Lbe.Select()
+	if addr == nil {
+		return ""
+	}
 	return *(addr.(*string))
 }
 
 func (out *OutChannel) SelectAddr() string {
 	selector := out.Lbe.Select()
 	svc := selector.(*SvcCluster)
+	if svc == nil {
+		return ""
+	}
 	return svc.SelectAddr()
 }
 

@@ -71,7 +71,7 @@ func (svcbase *ServerInstance) ServerAddInstance(inst api.SvcInstance) api.SvcIn
 			_, b := svcbase.Instances[inst.ID]
 			if b == false {
 				svcbase.Instances[inst.ID] = inst
-				log.Printf("new instance (%s) success!\r\n", inst.ID)
+				log.Printf("new instance (%v) success!\r\n", inst)
 				return inst
 			}
 		}
@@ -79,12 +79,12 @@ func (svcbase *ServerInstance) ServerAddInstance(inst api.SvcInstance) api.SvcIn
 
 	instold, b := svcbase.Instances[inst.ID]
 	if b == false {
-		log.Printf("add instance (%s) success!\r\n", inst.ID)
+		log.Printf("add instance (%v) success!\r\n", inst)
 	} else {
 		if api.InstanceCompare(instold, inst) {
-			log.Printf("heartbeat instance (%s) success!\r\n", inst.ID)
+			log.Printf("heartbeat instance (%v) success!\r\n", inst)
 		} else {
-			log.Printf("update instance (%s) success!\r\n", inst.ID)
+			log.Printf("update instance (%v) success!\r\n", inst)
 		}
 	}
 
