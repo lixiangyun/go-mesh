@@ -20,7 +20,7 @@ func init() {
 
 	for _, addr := range addrSlice {
 		if ipnet, ok := addr.(*net.IPNet); ok && !ipnet.IP.IsLoopback() {
-			if nil != ipnet.IP.To4() {
+			if nil != ipnet.IP.To4() && ipnet.IP.IsGlobalUnicast() {
 				IpAddr = append(IpAddr, ipnet.IP.String())
 			}
 		}
@@ -33,5 +33,5 @@ func SetNetWork(addr string) {
 	if addr != "" {
 		gLocalIp = strings.Split(addr, ",")
 	}
-	log.Println("Local NetWork: %v", gLocalIp)
+	log.Printf("NetWork %+v\r\n", gLocalIp)
 }
