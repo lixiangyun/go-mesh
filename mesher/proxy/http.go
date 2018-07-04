@@ -3,6 +3,7 @@ package proxy
 import (
 	"fmt"
 	"io"
+	"log"
 	"net"
 	"net/http"
 	"net/url"
@@ -60,6 +61,8 @@ func NewHttpProxy(addr string, fun SELECT_ADDR) *HttpProxy {
 		fmt.Println(err.Error())
 		return nil
 	}
+
+	log.Printf("Listen [%s]\r\n", addr)
 
 	proxy.Svc = &http.Server{Handler: proxy}
 

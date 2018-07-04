@@ -12,26 +12,26 @@ import (
 
 type Server struct {
 	Svc SvcType          `json:"type"`
-	Lb  lb.LBPOLICY_TYPE `json:"policy"`
+	LB  lb.LBPOLICY_TYPE `json:"policy,omitempty"`
 }
 
 type OutStream struct {
 	Protocal proxy.PROTOCOL_TYPE `json:"protocal"`
 	Addr     string              `json:"listen"`
 	Svc      []Server            `json:"service"`
-	LB       lb.LBPOLICY_TYPE    `json:"policy"`
+	LB       lb.LBPOLICY_TYPE    `json:"policy,omitempty"`
 }
 
 type InStream struct {
 	Protocal proxy.PROTOCOL_TYPE `json:"protocal"`
 	Addr     string              `json:"listen"`
 	Local    []string            `json:"local"`
-	LB       lb.LBPOLICY_TYPE    `json:"policy"`
+	LB       lb.LBPOLICY_TYPE    `json:"policy,omitempty"`
 }
 
 type ProxyCfg struct {
-	Out []OutStream `json:"out"`
-	In  []InStream  `json:"in"`
+	Out []OutStream `json:"out,omitempty"`
+	In  []InStream  `json:"in,omitempty"`
 }
 
 func OutStreamCompare(a, b OutStream) bool {
@@ -149,12 +149,12 @@ func LoadProxyCfg(addr string, svctype SvcType) (*ProxyCfg, error) {
 		return nil, err
 	}
 
-	proxycfg := &ProxyCfg{In: make([]InStream, 0), Out: make([]OutStream, 0)}
+	var proxycfg ProxyCfg
 
-	err = json.Unmarshal(body, proxycfg)
+	err = json.Unmarshal(body, &proxycfg)
 	if err != nil {
 		return nil, err
 	}
 
-	return proxycfg, nil
+	return &proxycfg, nil
 }

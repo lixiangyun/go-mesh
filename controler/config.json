@@ -1,0 +1,68 @@
+{
+	"services": [{
+		"name": "demo",
+		"version": "1.1.1",
+		"proxycfg": {
+			"out": [{
+				"protocal": "tcp",
+				"listen": "127.0.0.1:1000",
+				"service": [{
+					"type": {
+						"servername": "demotcp",
+						"version": "1.0.0"
+					},
+					"policy": "roundrobin"
+				}],
+				"policy": "roundrobin"
+			},
+			{
+				"protocal": "http",
+				"listen": "127.0.0.1:2000",
+				"service": [{
+					"type": {
+						"servername": "demohttp",
+						"version": "1.0.0"
+					},
+					"policy": "random"
+				}],
+				"policy": "random"
+			}],
+			"in": [{
+				"protocal": "tcp",
+				"listen": ":6000",
+				"local": ["127.0.0.1:6001",
+				"127.0.0.1:6002"],
+				"policy": "roundrobin"
+			},
+			{
+				"protocal": "http",
+				"listen": ":7000",
+				"local": ["127.0.0.1:7001",
+				"127.0.0.1:7002"],
+				"policy": "random"
+			}]
+		}
+	},
+	{
+		"name": "demohttp",
+		"version": "1.0.0",
+		"proxycfg": {
+			"in": [{
+				"protocal": "http",
+				"listen": ":8000",
+				"local": ["127.0.0.1:8001"]
+			}]
+		}
+	},
+	{
+		"name": "demotcp",
+		"version": "1.0.0",
+		"proxycfg": {
+			"in": [{
+				"protocal": "tcp",
+				"listen": ":9000",
+				"local": ["127.0.0.1:9001"]
+			}]
+		}
+	}]
+}

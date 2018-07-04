@@ -30,8 +30,20 @@ func NewTcpProxy(addr string, fun SELECT_ADDR) *TcpProxy {
 
 	proxy := &TcpProxy{ListenAddr: addr, SelectAddr: fun}
 
+	log.Printf("start tcp proxy : %s\r\n", addr)
+
 	proxy.connbuf = make(map[uint32]*connect)
 	proxy.stop = make(chan struct{}, 1)
+
+	listen, err := net.Listen("tcp", proxy.ListenAddr)
+	if err != nil {
+		log.Println(err.Error())
+		return nil
+	}
+
+	log.Printf("Listen [%s]\r\n", addr)
+
+	proxy.listen = listen
 
 	go proxy.start()
 
@@ -110,19 +122,11 @@ func (t *TcpProxy) start() {
 
 	var wait sync.WaitGroup
 
-	listen, err := net.Listen("tcp", t.ListenAddr)
-	if err != nil {
-		log.Println(err.Error())
-		return
-	}
-
-	t.listen = listen
-
 	for {
 
 		session := atomic.AddUint32(&t.sessionID, 1)
 
-		localconn, err := listen.Accept()
+		localconn, err := t.listen.Accept()
 		if err != nil {
 			log.Println(err.Error())
 			continue

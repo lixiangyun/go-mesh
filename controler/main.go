@@ -12,5 +12,5 @@ func main() {
 	mux.HandleFunc("/server/query", ServerQueryHandler)
 	mux.HandleFunc("/server/register", ServerRegisterHandler)
 
-	http.ListenAndServe(":3001", mux)
+	http.ListenAndServe(":301", mux)
 }

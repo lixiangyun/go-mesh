@@ -10,10 +10,43 @@ import (
 	"github.com/lixiangyun/go-mesh/mesher/api"
 )
 
+type CfgItem struct {
+	Name     string       `json:"name"`
+	Version  string       `json:"version"`
+	ProxyCfg api.ProxyCfg `json:"proxycfg"`
+}
+
+type CfgFromFile struct {
+	Items []CfgItem `json:"services"`
+}
+
 var gProxyCfgMap map[api.SvcType]*api.ProxyCfg
 
 func init() {
 	gProxyCfgMap = make(map[api.SvcType]*api.ProxyCfg, 100)
+
+	body, err := ioutil.ReadFile("config.json")
+	if err != nil {
+		log.Println(err.Error())
+		return
+	}
+
+	var cfgall CfgFromFile
+
+	err = json.Unmarshal(body, &cfgall)
+	if err != nil {
+		log.Println(err.Error())
+		return
+	}
+
+	for idx, cfgv := range cfgall.Items {
+		svc := api.SvcType{Name: cfgv.Name, Version: cfgv.Version}
+		gProxyCfgMap[svc] = &cfgall.Items[idx].ProxyCfg
+	}
+
+	for svc, _ := range gProxyCfgMap {
+		fmt.Printf("load server(%v) proxy cfg from file success!\r\n", svc)
+	}
 }
 
 func ProxyCfgHandler(rw http.ResponseWriter, req *http.Request) {
@@ -55,6 +88,8 @@ func ProxyCfgHandler(rw http.ResponseWriter, req *http.Request) {
 			log.Println("write to body not finish!")
 		}
 
+		log.Printf("server (%v) get proxy cfg success!\r\n", svc)
+
 	} else if req.Method == "POST" {
 
 		proxycfg := &api.ProxyCfg{In: make([]api.InStream, 0), Out: make([]api.OutStream, 0)}
@@ -76,6 +111,8 @@ func ProxyCfgHandler(rw http.ResponseWriter, req *http.Request) {
 		gProxyCfgMap[svc] = proxycfg
 
 		rw.WriteHeader(http.StatusOK)
+
+		log.Printf("server (%v) post proxy cfg success!\r\n", svc)
 
 	} else {
 		err := fmt.Sprintf("method(%s) is invalid!\r\n", req.Method)

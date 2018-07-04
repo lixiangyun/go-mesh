@@ -117,16 +117,6 @@ func ServerRegister(addr string, svctype SvcType, inst SvcInstance) error {
 
 	defer rsp.Body.Close()
 
-	body, err = ioutil.ReadAll(rsp.Body)
-	if err != nil {
-		return err
-	}
-
-	err = json.Unmarshal(body, &inst.ID)
-	if err != nil {
-		return err
-	}
-
 	return nil
 }
 
@@ -146,8 +136,7 @@ func ServerQuery(addr string, svctype SvcType) ([]SvcInstance, error) {
 	rsp, err := transport.RoundTrip(req)
 	if rsp.StatusCode != http.StatusOK {
 
-		errstr := fmt.Sprintf("register service(%s.%s) failed! (ret=%s)",
-			svctype.Name, svctype.Version, rsp.Status)
+		errstr := fmt.Sprintf("service(%v) does not exist! (ret=%s)", svctype, rsp.Status)
 
 		return nil, errors.New(errstr)
 	}

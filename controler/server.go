@@ -91,6 +91,8 @@ func ServerRegisterHandler(rw http.ResponseWriter, req *http.Request) {
 	} else if cnt != len(body) {
 		log.Println("write to body not finish!")
 	}
+
+	log.Printf("server (%v) register success! (%v)\r\n", svc, instance)
 }
 
 func ServerQueryHandler(rw http.ResponseWriter, req *http.Request) {
@@ -136,4 +138,6 @@ func ServerQueryHandler(rw http.ResponseWriter, req *http.Request) {
 	} else if cnt != len(body) {
 		log.Println("write to body not finish!")
 	}
+
+	log.Printf("server (%v) query success!\r\n", svc)
 }

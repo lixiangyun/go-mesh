@@ -3,7 +3,13 @@ package main
 import (
 	"flag"
 	"fmt"
+	"log"
 	"os"
+)
+
+const (
+	BIN_NAME = "mesher"
+	BIN_VER  = "0.0.1"
 )
 
 var (
@@ -16,8 +22,8 @@ var (
 
 func init() {
 	flag.StringVar(&SERVER_NAME, "n", "demo", "set the service name for mesher proxy.")
-	flag.StringVar(&SERVER_VERSION, "v", "v0.1.0", "set the service version for mesher proxy.")
-	flag.StringVar(&CONTROLER_ADDR, "c", "127.0.0.1:3001", "set the mesher control service addr.")
+	flag.StringVar(&SERVER_VERSION, "v", "1.1.1", "set the service version for mesher proxy.")
+	flag.StringVar(&CONTROLER_ADDR, "c", "127.0.0.1:301", "set the mesher control service addr.")
 
 	flag.BoolVar(&h, "h", false, "this help.")
 
@@ -42,6 +48,9 @@ func main() {
 		flag.Usage()
 		return
 	}
+
+	log.SetFlags(log.Ldate | log.Ltime | log.Lmicroseconds)
+	log.SetPrefix(fmt.Sprintf("[%s %s] ", BIN_NAME, BIN_VER))
 
 	MesherStart(SERVER_NAME, SERVER_VERSION, CONTROLER_ADDR)
 }

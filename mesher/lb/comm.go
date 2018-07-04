@@ -3,7 +3,8 @@ package lb
 type LBPOLICY_TYPE string
 
 const (
-	LBPOLICY_RR   LBPOLICY_TYPE = "roundrobin"
+	LBPOLICY_NONE LBPOLICY_TYPE = ""
+	LBPOLICY_RR                 = "roundrobin"
 	LBPOLICY_RAND               = "random"
 )
 
@@ -13,12 +14,11 @@ type LBE interface {
 }
 
 func NewLB(policy LBPOLICY_TYPE, list []interface{}) LBE {
-
 	if policy == LBPOLICY_RR {
 		return NewLBRR(list)
 	} else if policy == LBPOLICY_RAND {
 		return NewLBRandmod(list)
+	} else { //默认采用无lb策略，即始终返回第一个
+		return NewLBNONE(list)
 	}
-
-	return nil
 }

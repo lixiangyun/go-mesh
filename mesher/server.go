@@ -22,7 +22,7 @@ type SvcCluster struct {
 type OutChannel struct {
 	Proxy proxy.PROXY
 	Lbe   lb.LBE
-	Svc   []*SvcCluster
+	Svc   []SvcCluster
 }
 
 type InChannel struct {
@@ -146,14 +146,18 @@ func NewInChannel(in api.InStream) *InChannel {
 	channel.Lbe = lb.NewLB(in.LB, selectlist)
 	channel.Proxy = proxy.NewProxy(in.Protocal, in.Addr, channel.SelectAddr)
 
-	return nil
+	if channel.Proxy == nil {
+		return nil
+	}
+
+	return channel
 }
 
 func NewSvcCluster(svccfg api.Server) *SvcCluster {
 
 	instances, err := api.ServerQuery(gControlerAddr, svccfg.Svc)
 	if err != nil {
-		log.Println(err.Error())
+		log.Printf("server(%v) query failed! (%s)", svccfg.Svc, err.Error())
 		return nil
 	}
 
@@ -168,7 +172,7 @@ func NewSvcCluster(svccfg api.Server) *SvcCluster {
 		selectlist[i] = &svcCluster.Addr[i]
 	}
 
-	svcCluster.Lbe = lb.NewLB(svccfg.Lb, selectlist)
+	svcCluster.Lbe = lb.NewLB(svccfg.LB, selectlist)
 
 	return svcCluster
 }
@@ -176,7 +180,7 @@ func NewSvcCluster(svccfg api.Server) *SvcCluster {
 func NewOutChannel(in api.OutStream) *OutChannel {
 
 	channel := new(OutChannel)
-	channel.Svc = make([]*SvcCluster, 0)
+	channel.Svc = make([]SvcCluster, 0)
 
 	// 服务集群信息
 	for _, svccfg := range in.Svc {
@@ -184,7 +188,7 @@ func NewOutChannel(in api.OutStream) *OutChannel {
 		if svccluster == nil {
 			continue
 		}
-		channel.Svc = append(channel.Svc, svccluster)
+		channel.Svc = append(channel.Svc, *svccluster)
 	}
 
 	selectlist := make([]interface{}, len(channel.Svc))
@@ -195,16 +199,21 @@ func NewOutChannel(in api.OutStream) *OutChannel {
 	channel.Lbe = lb.NewLB(in.LB, selectlist)
 	channel.Proxy = proxy.NewProxy(in.Protocal, in.Addr, channel.SelectAddr)
 
-	return nil
+	if channel.Proxy == nil {
+		return nil
+	}
+
+	return channel
 }
 
 func UpdateProxyChanel(proxycfg *api.ProxyCfg) error {
 
 	if api.ProxyCfgCompare(gProxyMap.Cfg, *proxycfg) {
-
-		log.Println("proxy cfg not change!")
+		//log.Println("proxy cfg not change!")
 		return nil
 	}
+
+	gProxyMap.Cfg = *proxycfg
 
 	for _, InStream := range proxycfg.In {
 
@@ -225,6 +234,8 @@ func UpdateProxyChanel(proxycfg *api.ProxyCfg) error {
 			continue
 		}
 	}
+
+	log.Println("finish update proxy!")
 
 	return nil
 }
@@ -249,7 +260,7 @@ func MesherStart(name, version string, addr string) {
 
 		proxycfg, err := api.LoadProxyCfg(gControlerAddr, svctype)
 		if err != nil {
-			log.Println(err.Error())
+			log.Println("load proxy cfg from controler failed! ", err.Error())
 			errcnt++
 			continue
 		}
@@ -264,7 +275,7 @@ func MesherStart(name, version string, addr string) {
 
 		err = api.ServerRegister(gControlerAddr, svctype, instance)
 		if err != nil {
-			log.Println(err.Error())
+			log.Println("server register failed! ", err.Error())
 			errcnt++
 			continue
 		}
