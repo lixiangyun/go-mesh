@@ -2,13 +2,16 @@ package main
 
 import (
 	"flag"
-	"fmt"
+	"sync"
+	//	"fmt"
 	"io/ioutil"
 	"log"
 	"net"
 	"net/http"
 	"strings"
 	"time"
+
+	"github.com/lixiangyun/go-mesh/mesher/stat"
 )
 
 var (
@@ -54,6 +57,54 @@ func TcpSend(addr string, body string) string {
 	return string(recvbuf[:cnt])
 }
 
+func TcpBenchMark(addr string) {
+
+	var recvbuf [65535]byte
+	var sendbuf [65535]byte
+
+	conn, err := net.Dial("tcp", addr)
+	if err != nil {
+		log.Println(err.Error())
+		return
+	}
+
+	s := stat.NewStat(1)
+
+	defer s.Delete()
+
+	var wait sync.WaitGroup
+
+	wait.Add(2)
+
+	go func() {
+		defer wait.Done()
+		defer conn.Close()
+		for {
+			cnt, err := conn.Read(recvbuf[:])
+			if err != nil {
+				log.Println(err.Error())
+				return
+			}
+			s.Recv(cnt)
+		}
+	}()
+
+	go func() {
+		defer wait.Done()
+		defer conn.Close()
+		for {
+			cnt, err := conn.Write(sendbuf[:])
+			if err != nil {
+				log.Println(err.Error())
+				return
+			}
+			s.Send(cnt)
+		}
+	}()
+
+	wait.Wait()
+}
+
 func HttpRequest(addr string, url string, body string) string {
 
 	path := "http://" + addr + url
@@ -91,18 +142,24 @@ func main() {
 
 	log.Printf("%s %s start success!\r\n", SERVER_NAME, SERVER_VERSION)
 
-	var cnt int
-
 	for {
-		req := fmt.Sprintf("hello world! (tcp:%d)", cnt)
-		rsp := TcpSend("127.0.0.1:1000", req)
-
-		log.Printf("TCP_TEST:\r\nREQ:%s\r\nRSP:%s\r\n", req, rsp)
-
-		req = fmt.Sprintf("hello world! (http:%d)", cnt)
-		rsp = HttpRequest("127.0.0.1:2000", "/abc", req)
-		log.Printf("HTTP_TEST:\r\nREQ:%s\r\nRSP:%s\r\n", req, rsp)
-
-		time.Sleep(1 * time.Second)
+		TcpBenchMark("127.0.0.1:1000")
+		time.Sleep(5 * time.Second)
 	}
+
+	/*
+		var cnt int
+
+		for {
+			req := fmt.Sprintf("hello world! (tcp:%d)", cnt)
+			rsp := TcpSend("127.0.0.1:1000", req)
+
+			log.Printf("TCP_TEST:\r\nREQ:%s\r\nRSP:%s\r\n", req, rsp)
+
+			req = fmt.Sprintf("hello world! (http:%d)", cnt)
+			rsp = HttpRequest("127.0.0.1:2000", "/abc", req)
+			log.Printf("HTTP_TEST:\r\nREQ:%s\r\nRSP:%s\r\n", req, rsp)
+
+			time.Sleep(1 * time.Second)
+		}*/
 }

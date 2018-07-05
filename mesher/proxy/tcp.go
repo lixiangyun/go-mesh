@@ -71,7 +71,7 @@ func tcpChannel(localconn net.Conn, remoteconn net.Conn, wait *sync.WaitGroup) {
 	defer localconn.Close()
 	defer remoteconn.Close()
 
-	buf := make([]byte, 4096)
+	buf := make([]byte, 65535)
 
 	for {
 		cnt, err := localconn.Read(buf[0:])

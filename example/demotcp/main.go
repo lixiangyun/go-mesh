@@ -2,10 +2,9 @@ package main
 
 import (
 	"flag"
-	"fmt"
 	"log"
 	"net"
-	"time"
+	"sync"
 )
 
 var (
@@ -25,30 +24,43 @@ func init() {
 }
 
 func process(conn net.Conn) {
-	var recvbuf [1024]byte
 
-	defer conn.Close()
+	var recvbuf [65535]byte
+	var sendbuf [65535]byte
 
-	for {
-		conn.SetReadDeadline(time.Now().Add(1 * time.Second))
-		cnt, err := conn.Read(recvbuf[:])
-		if err != nil {
-			log.Println(err.Error())
-			break
+	log.Printf("new connect remoteaddr %s, localaddr %s\r\n",
+		conn.RemoteAddr().String(),
+		conn.LocalAddr().String())
+
+	var wait sync.WaitGroup
+
+	wait.Add(2)
+
+	go func() {
+		defer wait.Done()
+		defer conn.Close()
+		for {
+			_, err := conn.Read(recvbuf[:])
+			if err != nil {
+				log.Println(err.Error())
+				return
+			}
 		}
+	}()
 
-		sendbuf := fmt.Sprintf("send from [%s %s] body [%v]\r\n",
-			SERVER_NAME, SERVER_VERSION, recvbuf[:cnt])
-
-		log.Println(sendbuf)
-
-		conn.SetWriteDeadline(time.Now().Add(1 * time.Second))
-		_, err = conn.Write([]byte(sendbuf))
-		if err != nil {
-			log.Println(err.Error())
-			break
+	go func() {
+		defer wait.Done()
+		defer conn.Close()
+		for {
+			_, err := conn.Write(sendbuf[:])
+			if err != nil {
+				log.Println(err.Error())
+				return
+			}
 		}
-	}
+	}()
+
+	wait.Wait()
 }
 
 func main() {
