@@ -122,8 +122,6 @@ func ProxyCfgCompare(a, b ProxyCfg) bool {
 
 func LoadProxyCfg(addr string, svctype SvcType) (*ProxyCfg, error) {
 
-	transport := http.DefaultTransport
-
 	url := "http://" + addr + "/proxy/cfg"
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
@@ -133,7 +131,7 @@ func LoadProxyCfg(addr string, svctype SvcType) (*ProxyCfg, error) {
 	req.Header.Add("X-Server-Name", svctype.Name)
 	req.Header.Add("X-Server-Version", svctype.Version)
 
-	rsp, err := transport.RoundTrip(req)
+	rsp, err := DefaultTransport.RoundTrip(req)
 	if err != nil {
 		return nil, err
 	}

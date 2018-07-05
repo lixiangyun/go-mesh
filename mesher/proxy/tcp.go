@@ -6,6 +6,7 @@ import (
 	"net"
 	"sync"
 	"sync/atomic"
+	"time"
 )
 
 type connect struct {
@@ -79,7 +80,7 @@ func tcpChannel(localconn net.Conn, remoteconn net.Conn, wait *sync.WaitGroup) {
 			if err != io.EOF {
 				log.Println(err.Error())
 			}
-			break
+			return
 		}
 
 		err = writeFull(remoteconn, buf[0:cnt])
@@ -87,7 +88,7 @@ func tcpChannel(localconn net.Conn, remoteconn net.Conn, wait *sync.WaitGroup) {
 			if err != io.EOF {
 				log.Println(err.Error())
 			}
-			break
+			return
 		}
 	}
 }
@@ -109,7 +110,7 @@ func (t *TcpProxy) tcpProxyProcess(wait *sync.WaitGroup, conn *connect) {
 	syncSem.Wait()
 
 	t.Lock()
-	t.connbuf[conn.sessionID] = nil
+	delete(t.connbuf, conn.sessionID)
 	t.Unlock()
 
 	log.Println("close connect. ", conn.conn1.RemoteAddr(), " -> ", conn.conn2.RemoteAddr())
@@ -119,14 +120,21 @@ func (t *TcpProxy) tcpProxyProcess(wait *sync.WaitGroup, conn *connect) {
 func (t *TcpProxy) start() {
 
 	var wait sync.WaitGroup
+	var delaytime time.Duration
 
 	for {
-
 		session := atomic.AddUint32(&t.sessionID, 1)
 
 		localconn, err := t.listen.Accept()
 		if err != nil {
 			log.Println(err.Error())
+
+			if delaytime == 0 {
+				delaytime = 5 * time.Millisecond
+			} else if delaytime < 1*time.Second {
+				delaytime = delaytime * 2
+			}
+			time.Sleep(delaytime)
 			continue
 		}
 
@@ -134,8 +142,16 @@ func (t *TcpProxy) start() {
 		if err != nil {
 			log.Println(err.Error())
 			localconn.Close()
+
+			if delaytime == 0 {
+				delaytime = 5 * time.Millisecond
+			} else if delaytime < 1*time.Second {
+				delaytime = delaytime * 2
+			}
+			time.Sleep(delaytime)
 			continue
 		}
+		delaytime = 0
 
 		newconn := &connect{conn1: localconn, conn2: remoteconn, sessionID: session}
 

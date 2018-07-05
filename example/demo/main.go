@@ -1,16 +1,16 @@
 package main
 
 import (
+	"bytes"
 	"flag"
-	"sync"
-	//	"fmt"
 	"io/ioutil"
 	"log"
 	"net"
 	"net/http"
-	"strings"
+	"sync"
 	"time"
 
+	"github.com/lixiangyun/go-mesh/mesher/api"
 	"github.com/lixiangyun/go-mesh/mesher/stat"
 )
 
@@ -29,7 +29,6 @@ func init() {
 }
 
 func TcpSend(addr string, body string) string {
-
 	var recvbuf [1024]byte
 
 	conn, err := net.Dial("tcp", addr)
@@ -57,10 +56,11 @@ func TcpSend(addr string, body string) string {
 	return string(recvbuf[:cnt])
 }
 
-func TcpBenchMark(addr string) {
-
+func TcpBenchMark(addr string, duration int) {
 	var recvbuf [65535]byte
 	var sendbuf [65535]byte
+
+	log.Println("start tcp bench mark test....")
 
 	conn, err := net.Dial("tcp", addr)
 	if err != nil {
@@ -68,12 +68,10 @@ func TcpBenchMark(addr string) {
 		return
 	}
 
-	s := stat.NewStat(1)
-
+	s := stat.NewStat(5)
 	defer s.Delete()
 
 	var wait sync.WaitGroup
-
 	wait.Add(2)
 
 	go func() {
@@ -102,34 +100,83 @@ func TcpBenchMark(addr string) {
 		}
 	}()
 
+	stop := make(chan struct{}, 1)
+	go func() {
+		wait.Wait()
+		stop <- struct{}{}
+	}()
+
+	go func() {
+		time.Sleep(time.Duration(duration) * time.Second)
+		conn.Close()
+		wait.Wait()
+		stop <- struct{}{}
+	}()
+
+	<-stop
+}
+
+func HttpBenchMark(addr string, duration int) {
+
+	log.Println("start http bench mark test....")
+
+	s := stat.NewStat(5)
+	defer s.Delete()
+
+	var stop bool
+
+	var wait sync.WaitGroup
+	wait.Add(10)
+
+	for i := 0; i < 10; i++ {
+		go func() {
+			defer wait.Done()
+
+			for {
+				if stop {
+					return
+				}
+
+				req := []byte("helloworld!")
+				s.Send(len(req))
+
+				rsp, err := HttpRequest(addr, "/123", req)
+				if err != nil {
+					log.Println(err.Error())
+					return
+				}
+				s.Recv(len(rsp))
+			}
+		}()
+	}
+
+	time.Sleep(time.Duration(duration) * time.Second)
+
+	stop = true
+
 	wait.Wait()
 }
 
-func HttpRequest(addr string, url string, body string) string {
+func HttpRequest(addr string, url string, body []byte) ([]byte, error) {
 
 	path := "http://" + addr + url
 
-	transport := http.DefaultTransport
-
-	request, err := http.NewRequest("GET", path, strings.NewReader(body))
+	request, err := http.NewRequest("GET", path, bytes.NewBuffer(body))
 	if err != nil {
-		log.Println(err.Error())
-		return ""
+		return nil, err
 	}
 
-	rsp, err := transport.RoundTrip(request)
+	rsp, err := api.DefaultTransport.RoundTrip(request)
 	if err != nil {
-		log.Println(err.Error())
-		return ""
+		return nil, err
 	}
 
-	body2, err := ioutil.ReadAll(rsp.Body)
+	body, err = ioutil.ReadAll(rsp.Body)
 	if err != nil {
-		log.Println(err.Error())
-		return ""
+		return nil, err
 	}
 
-	return string(body2)
+	return body, nil
 }
 
 func main() {
@@ -143,8 +190,11 @@ func main() {
 	log.Printf("%s %s start success!\r\n", SERVER_NAME, SERVER_VERSION)
 
 	for {
-		TcpBenchMark("127.0.0.1:1000")
 		time.Sleep(5 * time.Second)
+		TcpBenchMark("127.0.0.1:1000", 60)
+
+		time.Sleep(5 * time.Second)
+		HttpBenchMark("127.0.0.1:2000", 60)
 	}
 
 	/*

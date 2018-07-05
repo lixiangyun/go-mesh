@@ -38,20 +38,20 @@ func calcUnit(cnt int) string {
 	if cnt < 1024 {
 		return fmt.Sprintf("%d", cnt)
 	} else if cnt < 1024*1024 {
-		return fmt.Sprintf("%.3fk", float32(cnt)/1024)
+		return fmt.Sprintf("%.2fk", float32(cnt)/1024)
 	} else if cnt < 1024*1024*1024 {
-		return fmt.Sprintf("%.3fM", float32(cnt)/(1024*1024))
+		return fmt.Sprintf("%.2fM", float32(cnt)/(1024*1024))
 	} else {
-		return fmt.Sprintf("%.3fG", float32(cnt)/(1024*1024*1024))
+		return fmt.Sprintf("%.2fG", float32(cnt)/(1024*1024*1024))
 	}
 }
 
 func (now *Item) Format() string {
 
-	str := fmt.Sprintf("sendCnt : %s ,Size %s\r\n",
+	str := fmt.Sprintf("[ sendcnt %s , size %s ]",
 		calcUnit(now.sendCnt), calcUnit(now.sendSize))
 
-	str += fmt.Sprintf("recvCnt : %s ,Size %s\r\n",
+	str += fmt.Sprintf("[ recvcnt %s , size %s ]",
 		calcUnit(now.recvCnt), calcUnit(now.recvSize))
 
 	return str
@@ -70,7 +70,7 @@ func (s *Stat) display() {
 				now.Div(s.interval)
 				str := now.Format()
 
-				log.Println("stat result : ", str)
+				log.Printf("Stat: %s\r\n", str)
 
 				s.old = s.now
 

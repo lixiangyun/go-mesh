@@ -98,8 +98,6 @@ func ServerRegister(addr string, svctype SvcType, inst *SvcInstance) error {
 		return err
 	}
 
-	transport := http.DefaultTransport
-
 	path := "http://" + addr + "/server/register"
 	req, err := http.NewRequest("POST", path, bytes.NewReader(body))
 	if err != nil {
@@ -109,7 +107,7 @@ func ServerRegister(addr string, svctype SvcType, inst *SvcInstance) error {
 	req.Header.Add("X-Server-Name", svctype.Name)
 	req.Header.Add("X-Server-Version", svctype.Version)
 
-	rsp, err := transport.RoundTrip(req)
+	rsp, err := DefaultTransport.RoundTrip(req)
 	if err != nil {
 		return err
 	}
@@ -135,8 +133,6 @@ func ServerRegister(addr string, svctype SvcType, inst *SvcInstance) error {
 
 func ServerQuery(addr string, svctype SvcType) ([]SvcInstance, error) {
 
-	transport := http.DefaultTransport
-
 	path := "http://" + addr + "/server/query"
 	req, err := http.NewRequest("GET", path, nil)
 	if err != nil {
@@ -146,7 +142,7 @@ func ServerQuery(addr string, svctype SvcType) ([]SvcInstance, error) {
 	req.Header.Add("X-Server-Name", svctype.Name)
 	req.Header.Add("X-Server-Version", svctype.Version)
 
-	rsp, err := transport.RoundTrip(req)
+	rsp, err := DefaultTransport.RoundTrip(req)
 	if err != nil {
 		return nil, err
 	}

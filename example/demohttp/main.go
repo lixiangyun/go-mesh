@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+
+	"github.com/lixiangyun/go-mesh/mesher/stat"
 )
 
 var (
@@ -15,16 +17,22 @@ var (
 	h bool
 )
 
+var gStat *stat.Stat
+
 type DemoHttp struct{}
 
 func (*DemoHttp) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 
-	body := fmt.Sprintf("[%s %s]Received request [%s %s %s]\n", SERVER_NAME, SERVER_VERSION, req.Method, req.Host, req.RemoteAddr)
+	gStat.Recv(int(req.ContentLength))
 
-	log.Println(body)
+	body := fmt.Sprintf("[%s %s]Received request [%s %s %s]\n",
+		SERVER_NAME, SERVER_VERSION, req.Method, req.Host, req.RemoteAddr)
+	//log.Println(body)
 
 	rw.WriteHeader(http.StatusOK)
 	rw.Write([]byte(body))
+
+	gStat.Send(len(body))
 }
 
 func init() {
@@ -33,6 +41,8 @@ func init() {
 	flag.StringVar(&LISTEN_ADDRESS, "p", "127.0.0.1:8001", "set the service listen addr.")
 
 	flag.BoolVar(&h, "h", false, "this help.")
+
+	gStat = stat.NewStat(10)
 }
 
 func main() {

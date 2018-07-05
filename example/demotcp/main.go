@@ -5,6 +5,9 @@ import (
 	"log"
 	"net"
 	"sync"
+	"time"
+
+	"github.com/lixiangyun/go-mesh/mesher/stat"
 )
 
 var (
@@ -15,12 +18,16 @@ var (
 	h bool
 )
 
+var gStat *stat.Stat
+
 func init() {
 	flag.StringVar(&SERVER_NAME, "n", "demotcp", "set the service name.")
 	flag.StringVar(&SERVER_VERSION, "v", "1.0.0", "set the service version.")
 	flag.StringVar(&LISTEN_ADDRESS, "p", "127.0.0.1:10001", "set the service listen addr.")
 
 	flag.BoolVar(&h, "h", false, "this help.")
+
+	gStat = stat.NewStat(10)
 }
 
 func process(conn net.Conn) {
@@ -40,11 +47,12 @@ func process(conn net.Conn) {
 		defer wait.Done()
 		defer conn.Close()
 		for {
-			_, err := conn.Read(recvbuf[:])
+			cnt, err := conn.Read(recvbuf[:])
 			if err != nil {
 				log.Println(err.Error())
 				return
 			}
+			gStat.Recv(cnt)
 		}
 	}()
 
@@ -52,11 +60,12 @@ func process(conn net.Conn) {
 		defer wait.Done()
 		defer conn.Close()
 		for {
-			_, err := conn.Write(sendbuf[:])
+			cnt, err := conn.Write(sendbuf[:])
 			if err != nil {
 				log.Println(err.Error())
 				return
 			}
+			gStat.Send(cnt)
 		}
 	}()
 
@@ -64,7 +73,6 @@ func process(conn net.Conn) {
 }
 
 func main() {
-
 	flag.Parse()
 
 	if h {
@@ -80,13 +88,22 @@ func main() {
 		return
 	}
 
+	var delaytime time.Duration
+
 	for {
 		conn, err := lis.Accept()
 		if err != nil {
 			log.Println(err.Error())
+
+			if delaytime == 0 {
+				delaytime = 5 * time.Millisecond
+			} else if delaytime < 1*time.Second {
+				delaytime = delaytime * 2
+			}
+			time.Sleep(delaytime)
+
 			continue
 		}
-
 		go process(conn)
 	}
 }

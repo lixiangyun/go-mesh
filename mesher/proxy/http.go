@@ -16,9 +16,6 @@ type HttpProxy struct {
 }
 
 func (h *HttpProxy) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
-
-	//fmt.Printf("Received request %s %s %s\n", req.Method, req.Host, req.RemoteAddr)
-
 	redirect := h.Fun()
 
 	// step 1
@@ -47,7 +44,6 @@ func (h *HttpProxy) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 
 	rw.WriteHeader(resp.StatusCode)
 	io.Copy(rw, resp.Body)
-	resp.Body.Close()
 }
 
 func NewHttpProxy(addr string, fun SELECT_ADDR) *HttpProxy {
