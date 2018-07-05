@@ -33,6 +33,8 @@ func main() {
 		return
 	}
 
+	ServerCheckTimeout()
+
 	mux := http.NewServeMux()
 
 	mux.HandleFunc("/proxy/cfg", ProxyCfgHandler)

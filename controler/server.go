@@ -50,6 +50,7 @@ func ServerCheckTimeout() {
 					}
 				}
 				for _, inst := range instdel {
+					log.Printf("delete instance (%v)!\r\n", inst)
 					delete(svc.Instances, inst.ID)
 				}
 			}
