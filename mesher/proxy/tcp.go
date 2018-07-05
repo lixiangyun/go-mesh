@@ -30,8 +30,6 @@ func NewTcpProxy(addr string, fun SELECT_ADDR) *TcpProxy {
 
 	proxy := &TcpProxy{ListenAddr: addr, SelectAddr: fun}
 
-	log.Printf("start tcp proxy : %s\r\n", addr)
-
 	proxy.connbuf = make(map[uint32]*connect)
 	proxy.stop = make(chan struct{}, 1)
 
@@ -41,7 +39,7 @@ func NewTcpProxy(addr string, fun SELECT_ADDR) *TcpProxy {
 		return nil
 	}
 
-	log.Printf("Listen [%s]\r\n", addr)
+	log.Printf("Tcp Proxy Listen : %s\r\n", addr)
 
 	proxy.listen = listen
 

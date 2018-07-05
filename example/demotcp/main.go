@@ -40,6 +40,8 @@ func process(conn net.Conn) {
 		sendbuf := fmt.Sprintf("send from [%s %s] body [%v]\r\n",
 			SERVER_NAME, SERVER_VERSION, recvbuf[:cnt])
 
+		log.Println(sendbuf)
+
 		conn.SetWriteDeadline(time.Now().Add(1 * time.Second))
 		_, err = conn.Write([]byte(sendbuf))
 		if err != nil {

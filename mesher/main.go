@@ -9,7 +9,7 @@ import (
 
 const (
 	BIN_NAME = "mesher"
-	BIN_VER  = "0.0.1"
+	BIN_VER  = "0.1.0"
 )
 
 var (
@@ -22,10 +22,10 @@ var (
 )
 
 func init() {
-	flag.StringVar(&SERVER_NAME, "n", "demo", "set the service name for mesher proxy.")
-	flag.StringVar(&SERVER_VERSION, "v", "1.1.1", "set the service version for mesher proxy.")
-	flag.StringVar(&CONTROLER_ADDR, "c", "127.0.0.1:301", "set the mesher control service addr.")
-	flag.StringVar(&NETWORK_IP, "b", "", "set the mesher bind network addr.")
+	flag.StringVar(&SERVER_NAME, "name", "", "set the service name for mesher proxy.")
+	flag.StringVar(&SERVER_VERSION, "ver", "", "set the service version for mesher proxy.")
+	flag.StringVar(&CONTROLER_ADDR, "control", "127.0.0.1:301", "set the mesher control service addr.")
+	flag.StringVar(&NETWORK_IP, "bind", "", "set the mesher bind network addr.")
 
 	flag.BoolVar(&h, "h", false, "this help.")
 
@@ -34,8 +34,9 @@ func init() {
 }
 
 func usage() {
-	fmt.Fprintf(os.Stderr, `mesher version: mesher/0.0.1
-Usage: mesher [-h] [-n servicename] [-v serviceversion] [-c ip:port] [-b ip1,ip2,ip3...]
+	fmt.Fprintf(os.Stderr, `mesher version: `+BIN_VER+`
+
+Usage: mesher [-h] [-name servicename] [-ver serviceversion] [-control ip:port] [-bind ip1,ip2,ip3...]
 
 Options:
 `)
@@ -50,7 +51,8 @@ func main() {
 		return
 	}
 
-	log.SetPrefix(fmt.Sprintf("[%s %s] ", BIN_NAME, BIN_VER))
+	log.Printf("[%s %s] [%s %s]\r\n", BIN_NAME, BIN_VER, SERVER_NAME, SERVER_VERSION)
+
 	SetNetWork(NETWORK_IP)
 	MesherStart(SERVER_NAME, SERVER_VERSION, CONTROLER_ADDR)
 }

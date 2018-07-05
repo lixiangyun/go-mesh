@@ -1,5 +1,9 @@
 package proxy
 
+import (
+	"log"
+)
+
 type PROTOCOL_TYPE string
 
 const (
@@ -18,6 +22,8 @@ func NewProxy(protocal PROTOCOL_TYPE, addr string, fun SELECT_ADDR) PROXY {
 		return NewTcpProxy(addr, fun)
 	} else if protocal == PROTOCOL_HTTP {
 		return NewHttpProxy(addr, fun)
+	} else {
+		log.Printf("protocal %s not support.\r\n", protocal)
+		return nil
 	}
-	return nil
 }

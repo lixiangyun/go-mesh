@@ -58,11 +58,11 @@ func NewHttpProxy(addr string, fun SELECT_ADDR) *HttpProxy {
 
 	lis, err := net.Listen("tcp", proxy.Addr)
 	if err != nil {
-		fmt.Println(err.Error())
+		log.Println("http listen failed!", err.Error())
 		return nil
 	}
 
-	log.Printf("Listen [%s]\r\n", addr)
+	log.Printf("Http Proxy Listen : %s\r\n", addr)
 
 	proxy.Svc = &http.Server{Handler: proxy}
 

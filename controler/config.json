@@ -63,7 +63,7 @@
 		"version": "1.0.0",
 		"proxycfg": {
 			"in": [{
-				"protocal": "http",
+				"protocal": "tcp",
 				"listen": ":10000",
 				"local": ["127.0.0.1:10001"]
 			}]
