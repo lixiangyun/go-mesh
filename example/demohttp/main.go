@@ -23,6 +23,8 @@ type DemoHttp struct{}
 
 func (*DemoHttp) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 
+	defer req.Body.Close()
+
 	gStat.Recv(int(req.ContentLength))
 
 	body := fmt.Sprintf("[%s %s]Received request [%s %s %s]\n",

@@ -96,6 +96,8 @@ func (svcbase *ServerInstance) ServerAddInstance(inst api.SvcInstance) api.SvcIn
 
 func ServerRegisterHandler(rw http.ResponseWriter, req *http.Request) {
 
+	defer req.Body.Close()
+
 	servername := req.Header.Get("X-Server-Name")
 	serverversion := req.Header.Get("X-Server-Version")
 
@@ -161,6 +163,8 @@ func ServerRegisterHandler(rw http.ResponseWriter, req *http.Request) {
 }
 
 func ServerQueryHandler(rw http.ResponseWriter, req *http.Request) {
+
+	defer req.Body.Close()
 
 	servername := req.Header.Get("X-Server-Name")
 	serverversion := req.Header.Get("X-Server-Version")

@@ -106,7 +106,6 @@ func ServerRegister(addr string, svctype SvcType, inst *SvcInstance) error {
 		return err
 	}
 
-	req.Close = true
 	req.Header.Add("X-Server-Name", svctype.Name)
 	req.Header.Add("X-Server-Version", svctype.Version)
 
@@ -150,6 +149,7 @@ func ServerQuery(addr string, svctype SvcType) ([]SvcInstance, error) {
 		return nil, err
 	}
 	defer rsp.Body.Close()
+
 	if rsp.StatusCode != http.StatusOK {
 		errstr := fmt.Sprintf("service(%v) does not exist! (ret=%s)", svctype, rsp.Status)
 		return nil, errors.New(errstr)

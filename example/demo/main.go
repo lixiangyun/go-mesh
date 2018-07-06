@@ -191,13 +191,11 @@ func main() {
 	log.Printf("%s %s start success!\r\n", SERVER_NAME, SERVER_VERSION)
 
 	for {
-
 		time.Sleep(5 * time.Second)
 		HttpBenchMark("127.0.0.1:2000", 60)
 
-		time.Sleep(5 * time.Second)
-		TcpBenchMark("127.0.0.1:1000", 60)
-
+		//time.Sleep(5 * time.Second)
+		//TcpBenchMark("127.0.0.1:1000", 60)
 	}
 
 	/*

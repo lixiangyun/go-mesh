@@ -19,6 +19,9 @@ type HttpProxy struct {
 }
 
 func (h *HttpProxy) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
+
+	defer req.Body.Close()
+
 	redirect := h.Fun()
 
 	// step 1

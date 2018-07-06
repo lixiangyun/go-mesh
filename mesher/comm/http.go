@@ -14,7 +14,6 @@ var defaultTransport http.RoundTripper = &http.Transport{
 	}).DialContext,
 	MaxIdleConnsPerHost:   10,
 	MaxIdleConns:          10,
-	DisableKeepAlives:     true,
 	IdleConnTimeout:       30 * time.Second,
 	TLSHandshakeTimeout:   30 * time.Second,
 	ExpectContinueTimeout: 1 * time.Second,

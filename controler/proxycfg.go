@@ -55,6 +55,8 @@ func ProxyCfgLoadFromFile(filename string) error {
 
 func ProxyCfgHandler(rw http.ResponseWriter, req *http.Request) {
 
+	defer req.Body.Close()
+
 	servername := req.Header.Get("X-Server-Name")
 	serverversion := req.Header.Get("X-Server-Version")
 
