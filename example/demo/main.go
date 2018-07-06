@@ -5,6 +5,7 @@ import (
 	"flag"
 	"io/ioutil"
 	"log"
+	"math/rand"
 	"net"
 	"net/http"
 	"sync"
@@ -192,10 +193,10 @@ func main() {
 
 	for {
 		time.Sleep(5 * time.Second)
-		HttpBenchMark("127.0.0.1:2000", 60)
+		HttpBenchMark("127.0.0.1:2000", rand.Int()%1000)
 
-		//time.Sleep(5 * time.Second)
-		//TcpBenchMark("127.0.0.1:1000", 60)
+		time.Sleep(5 * time.Second)
+		TcpBenchMark("127.0.0.1:1000", rand.Int()%1000)
 	}
 
 	/*

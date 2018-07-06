@@ -1,13 +1,10 @@
 package proxy
 
 import (
-	"fmt"
 	"io"
 	"log"
 	"net"
 	"net/http"
-	"net/url"
-	"time"
 
 	"github.com/lixiangyun/go-mesh/mesher/comm"
 )
@@ -25,17 +22,26 @@ func (h *HttpProxy) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 	redirect := h.Fun()
 
 	// step 1
-	req.Host = redirect
-	req.RequestURI = "http://" + redirect + "/" + req.URL.Path
-	req.URL, _ = url.Parse(req.RequestURI)
+	path := "http://" + redirect + "/" + req.URL.Path
+
+	request, err := http.NewRequest(req.Method, path, req.Body)
+	if err != nil {
+		log.Println(err.Error())
+		http.Error(rw, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	for key, value := range req.Header {
+		for _, v := range value {
+			request.Header.Add(key, v)
+		}
+	}
 
 	// step 2
-	resp, err := comm.HttpClient.Do(req)
+	resp, err := comm.HttpClient.Do(request)
 	if err != nil {
-
-		fmt.Println(err.Error())
+		log.Println(err.Error())
 		http.Error(rw, err.Error(), http.StatusInternalServerError)
-
 		return
 	}
 	defer resp.Body.Close()
@@ -65,11 +71,7 @@ func NewHttpProxy(addr string, fun SELECT_ADDR) *HttpProxy {
 
 	log.Printf("Http Proxy Listen : %s\r\n", addr)
 
-	proxy.Svc = &http.Server{Handler: proxy,
-		ReadTimeout:       5 * time.Second,
-		WriteTimeout:      5 * time.Second,
-		ReadHeaderTimeout: 5 * time.Second,
-		IdleTimeout:       10 * time.Second}
+	proxy.Svc = &http.Server{Handler: proxy}
 
 	go proxy.Svc.Serve(lis)
 
