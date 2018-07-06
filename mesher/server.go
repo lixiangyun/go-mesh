@@ -300,6 +300,6 @@ func MesherStart(name, version string, addr string) {
 		}
 
 		errcnt = 0
-		time.Sleep(1 * time.Second)
+		time.Sleep(100 * time.Second)
 	}
 }

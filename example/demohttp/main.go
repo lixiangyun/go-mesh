@@ -25,7 +25,7 @@ func (*DemoHttp) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 
 	defer req.Body.Close()
 
-	gStat.Recv(int(req.ContentLength))
+	gStat.Recv(1)
 
 	body := fmt.Sprintf("[%s %s]Received request [%s %s %s]\n",
 		SERVER_NAME, SERVER_VERSION, req.Method, req.Host, req.RemoteAddr)
@@ -34,7 +34,7 @@ func (*DemoHttp) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 	rw.WriteHeader(http.StatusOK)
 	rw.Write([]byte(body))
 
-	gStat.Send(len(body))
+	gStat.Send(1)
 }
 
 func init() {
