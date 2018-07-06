@@ -7,6 +7,9 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"time"
+
+	"github.com/lixiangyun/go-mesh/mesher/comm"
 )
 
 type HttpProxy struct {
@@ -21,11 +24,10 @@ func (h *HttpProxy) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 	// step 1
 	req.Host = redirect
 	req.RequestURI = "http://" + redirect + "/" + req.URL.Path
-
 	req.URL, _ = url.Parse(req.RequestURI)
 
 	// step 2
-	resp, err := http.DefaultTransport.RoundTrip(req)
+	resp, err := comm.HttpClient.Do(req)
 	if err != nil {
 
 		fmt.Println(err.Error())
@@ -60,7 +62,11 @@ func NewHttpProxy(addr string, fun SELECT_ADDR) *HttpProxy {
 
 	log.Printf("Http Proxy Listen : %s\r\n", addr)
 
-	proxy.Svc = &http.Server{Handler: proxy}
+	proxy.Svc = &http.Server{Handler: proxy,
+		ReadTimeout:       5 * time.Second,
+		WriteTimeout:      5 * time.Second,
+		ReadHeaderTimeout: 5 * time.Second,
+		IdleTimeout:       10 * time.Second}
 
 	go proxy.Svc.Serve(lis)
 

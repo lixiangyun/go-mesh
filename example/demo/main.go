@@ -10,7 +10,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/lixiangyun/go-mesh/mesher/api"
+	"github.com/lixiangyun/go-mesh/mesher/comm"
 	"github.com/lixiangyun/go-mesh/mesher/stat"
 )
 
@@ -166,10 +166,11 @@ func HttpRequest(addr string, url string, body []byte) ([]byte, error) {
 		return nil, err
 	}
 
-	rsp, err := api.DefaultTransport.RoundTrip(request)
+	rsp, err := comm.HttpClient.Do(request)
 	if err != nil {
 		return nil, err
 	}
+	defer rsp.Body.Close()
 
 	body, err = ioutil.ReadAll(rsp.Body)
 	if err != nil {
@@ -190,11 +191,13 @@ func main() {
 	log.Printf("%s %s start success!\r\n", SERVER_NAME, SERVER_VERSION)
 
 	for {
-		time.Sleep(5 * time.Second)
-		TcpBenchMark("127.0.0.1:1000", 60)
 
 		time.Sleep(5 * time.Second)
 		HttpBenchMark("127.0.0.1:2000", 60)
+
+		time.Sleep(5 * time.Second)
+		TcpBenchMark("127.0.0.1:1000", 60)
+
 	}
 
 	/*

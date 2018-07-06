@@ -6,6 +6,7 @@ import (
 	"io/ioutil"
 	"net/http"
 
+	"github.com/lixiangyun/go-mesh/mesher/comm"
 	"github.com/lixiangyun/go-mesh/mesher/lb"
 	"github.com/lixiangyun/go-mesh/mesher/proxy"
 )
@@ -131,7 +132,7 @@ func LoadProxyCfg(addr string, svctype SvcType) (*ProxyCfg, error) {
 	req.Header.Add("X-Server-Name", svctype.Name)
 	req.Header.Add("X-Server-Version", svctype.Version)
 
-	rsp, err := DefaultTransport.RoundTrip(req)
+	rsp, err := comm.HttpClient.Do(req)
 	if err != nil {
 		return nil, err
 	}
