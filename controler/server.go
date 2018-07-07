@@ -13,7 +13,7 @@ import (
 )
 
 const (
-	INSTANCE_TIMEOUT = 3
+	INSTANCE_TIMEOUT = 15 // 服务示例健康检查超时时间，单位秒。
 )
 
 type ServerInstance struct {

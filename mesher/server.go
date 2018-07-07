@@ -255,6 +255,8 @@ func MesherStart(name, version string, addr string) {
 
 	var errcnt int
 
+	log.Printf("[%s %s] [%s %s]\r\n", BIN_NAME, BIN_VER, SERVER_NAME, SERVER_VERSION)
+
 	gControlerAddr = addr
 
 	svctype := api.SvcType{Name: name, Version: version}
@@ -300,6 +302,6 @@ func MesherStart(name, version string, addr string) {
 		}
 
 		errcnt = 0
-		time.Sleep(100 * time.Second)
+		time.Sleep(3 * time.Second)
 	}
 }
