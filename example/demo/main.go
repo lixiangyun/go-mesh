@@ -5,7 +5,7 @@ import (
 	"flag"
 	"io/ioutil"
 	"log"
-	"math/rand"
+	//	"math/rand"
 	"net"
 	"net/http"
 	"sync"
@@ -167,7 +167,7 @@ func HttpRequest(addr string, url string, body []byte) ([]byte, error) {
 		return nil, err
 	}
 
-	rsp, err := comm.HttpClient.Do(request)
+	rsp, err := comm.HttpClient(addr).Do(request)
 	if err != nil {
 		return nil, err
 	}
@@ -194,10 +194,11 @@ func main() {
 	for {
 
 		time.Sleep(5 * time.Second)
-		TcpBenchMark("127.0.0.1:1000", rand.Int()%1000)
+		HttpBenchMark("127.0.0.1:2000", 100)
 
 		time.Sleep(5 * time.Second)
-		//HttpBenchMark("127.0.0.1:2000", rand.Int()%1000)
+		TcpBenchMark("127.0.0.1:1000", 100)
+
 	}
 
 	/*

@@ -132,7 +132,7 @@ func LoadProxyCfg(addr string, svctype SvcType) (*ProxyCfg, error) {
 	req.Header.Add("X-Server-Name", svctype.Name)
 	req.Header.Add("X-Server-Version", svctype.Version)
 
-	rsp, err := comm.HttpClient.Do(req)
+	rsp, err := comm.HttpClient(addr).Do(req)
 	if err != nil {
 		return nil, err
 	}
