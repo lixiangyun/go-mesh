@@ -8,7 +8,7 @@ import (
 )
 
 type httpClientMap struct {
-	sync.Mutex
+	sync.RWMutex
 	clients map[string]*http.Client
 }
 
@@ -33,21 +33,28 @@ func newTransport() http.RoundTripper {
 	}
 }
 
-func newhttpclient() *http.Client {
-	return &http.Client{
-		Transport: newTransport(),
-		Timeout:   10 * time.Second,
+func newhttpclient(addr string) *http.Client {
+	client, b := gHttpClientAll.clients[addr]
+	if b == false {
+		client = &http.Client{
+			Transport: newTransport(),
+			Timeout:   10 * time.Second,
+		}
+		gHttpClientAll.clients[addr] = client
 	}
+	return client
 }
 
 func HttpClient(addr string) *http.Client {
-	gHttpClientAll.Lock()
+	gHttpClientAll.RLock()
 	client, b := gHttpClientAll.clients[addr]
+	gHttpClientAll.RUnlock()
+
 	if b == false {
-		client = newhttpclient()
-		gHttpClientAll.clients[addr] = client
+		gHttpClientAll.Lock()
+		client = newhttpclient(addr)
+		gHttpClientAll.Unlock()
 	}
-	gHttpClientAll.Unlock()
 
 	return client
 }
