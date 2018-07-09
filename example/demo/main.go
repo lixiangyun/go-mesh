@@ -127,11 +127,13 @@ func HttpBenchMark(addr string, duration int) {
 	var stop bool
 
 	var wait sync.WaitGroup
-	wait.Add(10)
+	wait.Add(20)
 
-	for i := 0; i < 10; i++ {
+	for i := 0; i < 20; i++ {
 		go func() {
 			defer wait.Done()
+
+			client := comm.NewHttpClient()
 
 			for {
 				if stop {
@@ -141,10 +143,11 @@ func HttpBenchMark(addr string, duration int) {
 				req := []byte("helloworld!")
 				s.Send(len(req))
 
-				rsp, err := HttpRequest(addr, "/123", req)
+				rsp, err := HttpRequest(client, addr, "/123", req)
 				if err != nil {
 					log.Println(err.Error())
-					return
+					time.Sleep(1 * time.Second)
+					continue
 				}
 				s.Recv(len(rsp))
 			}
@@ -158,7 +161,7 @@ func HttpBenchMark(addr string, duration int) {
 	wait.Wait()
 }
 
-func HttpRequest(addr string, url string, body []byte) ([]byte, error) {
+func HttpRequest(client *http.Client, addr string, url string, body []byte) ([]byte, error) {
 
 	path := "http://" + addr + url
 
@@ -167,7 +170,7 @@ func HttpRequest(addr string, url string, body []byte) ([]byte, error) {
 		return nil, err
 	}
 
-	rsp, err := comm.HttpClient(addr).Do(request)
+	rsp, err := client.Do(request)
 	if err != nil {
 		return nil, err
 	}

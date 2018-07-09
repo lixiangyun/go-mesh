@@ -3,20 +3,8 @@ package comm
 import (
 	"net"
 	"net/http"
-	"sync"
 	"time"
 )
-
-type httpClientMap struct {
-	sync.RWMutex
-	clients map[string]*http.Client
-}
-
-var gHttpClientAll httpClientMap
-
-func init() {
-	gHttpClientAll.clients = make(map[string]*http.Client, 100)
-}
 
 func newTransport() http.RoundTripper {
 	return &http.Transport{
@@ -33,28 +21,9 @@ func newTransport() http.RoundTripper {
 	}
 }
 
-func newhttpclient(addr string) *http.Client {
-	client, b := gHttpClientAll.clients[addr]
-	if b == false {
-		client = &http.Client{
-			Transport: newTransport(),
-			Timeout:   10 * time.Second,
-		}
-		gHttpClientAll.clients[addr] = client
+func NewHttpClient() *http.Client {
+	return &http.Client{
+		Transport: newTransport(),
+		Timeout:   10 * time.Second,
 	}
-	return client
-}
-
-func HttpClient(addr string) *http.Client {
-	gHttpClientAll.RLock()
-	client, b := gHttpClientAll.clients[addr]
-	gHttpClientAll.RUnlock()
-
-	if b == false {
-		gHttpClientAll.Lock()
-		client = newhttpclient(addr)
-		gHttpClientAll.Unlock()
-	}
-
-	return client
 }

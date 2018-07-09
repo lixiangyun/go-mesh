@@ -8,8 +8,6 @@ import (
 	"io/ioutil"
 	"net/http"
 	"time"
-
-	"github.com/lixiangyun/go-mesh/mesher/comm"
 )
 
 type SvcType struct {
@@ -109,7 +107,7 @@ func ServerRegister(addr string, svctype SvcType, inst *SvcInstance) error {
 	req.Header.Add("X-Server-Name", svctype.Name)
 	req.Header.Add("X-Server-Version", svctype.Version)
 
-	rsp, err := comm.HttpClient(addr).Do(req)
+	rsp, err := HttpClient(req)
 	if err != nil {
 		return err
 	}
@@ -144,7 +142,7 @@ func ServerQuery(addr string, svctype SvcType) ([]SvcInstance, error) {
 	req.Header.Add("X-Server-Name", svctype.Name)
 	req.Header.Add("X-Server-Version", svctype.Version)
 
-	rsp, err := comm.HttpClient(addr).Do(req)
+	rsp, err := HttpClient(req)
 	if err != nil {
 		return nil, err
 	}

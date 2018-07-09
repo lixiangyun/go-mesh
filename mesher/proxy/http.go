@@ -1,10 +1,12 @@
 package proxy
 
 import (
-	"io"
+	"bytes"
+	"io/ioutil"
 	"log"
 	"net"
 	"net/http"
+	"sync"
 
 	"github.com/lixiangyun/go-mesh/mesher/comm"
 )
@@ -13,48 +15,132 @@ type HttpProxy struct {
 	Fun  SELECT_ADDR
 	Addr string
 	Svc  *http.Server
+
+	GoCnt int
+	Que   chan *HttpRequest
+	Wait  sync.WaitGroup
+	Stop  chan struct{}
+}
+
+type HttpRsponse struct {
+	status int
+	header http.Header
+	body   []byte
+
+	err error
+}
+
+type HttpRequest struct {
+	addr   string
+	url    string
+	method string
+	header http.Header
+	body   []byte
+	rsp    chan *HttpRsponse
+}
+
+func (h *HttpProxy) Process() {
+	defer h.Wait.Done()
+
+	httpclient := comm.NewHttpClient()
+
+	for {
+		select {
+		case proxyreq := <-h.Que:
+			{
+				proxyrsp := new(HttpRsponse)
+
+				request, err := http.NewRequest(proxyreq.method,
+					proxyreq.url,
+					bytes.NewBuffer(proxyreq.body))
+				if err != nil {
+					proxyrsp.err = err
+					proxyrsp.status = http.StatusInternalServerError
+
+					proxyreq.rsp <- proxyrsp
+					continue
+				}
+
+				for key, value := range proxyreq.header {
+					for _, v := range value {
+						request.Header.Add(key, v)
+					}
+				}
+
+				resp, err := httpclient.Do(request)
+				if err != nil {
+					proxyrsp.err = err
+					proxyrsp.status = http.StatusInternalServerError
+
+					proxyreq.rsp <- proxyrsp
+					continue
+				} else {
+					proxyrsp.status = resp.StatusCode
+					proxyrsp.header = resp.Header
+				}
+
+				proxyrsp.body, err = ioutil.ReadAll(resp.Body)
+				if err != nil {
+					proxyrsp.err = err
+					proxyrsp.status = http.StatusInternalServerError
+
+					proxyreq.rsp <- proxyrsp
+					continue
+				}
+				resp.Body.Close()
+
+				proxyreq.rsp <- proxyrsp
+			}
+		case <-h.Stop:
+			{
+				return
+			}
+		}
+	}
 }
 
 func (h *HttpProxy) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
+
+	var err error
 
 	defer req.Body.Close()
 
 	redirect := h.Fun()
 
 	// step 1
-	path := "http://" + redirect + "/" + req.URL.Path
+	proxyreq := new(HttpRequest)
+	proxyreq.addr = redirect
+	proxyreq.url = "http://" + redirect + "/" + req.URL.Path
+	proxyreq.method = req.Method
+	proxyreq.header = req.Header
+	proxyreq.rsp = make(chan *HttpRsponse, 1)
 
-	request, err := http.NewRequest(req.Method, path, req.Body)
+	proxyreq.body, err = ioutil.ReadAll(req.Body)
 	if err != nil {
 		log.Println(err.Error())
 		http.Error(rw, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	for key, value := range req.Header {
-		for _, v := range value {
-			request.Header.Add(key, v)
-		}
-	}
+	h.Que <- proxyreq
+	proxyrsp := <-proxyreq.rsp
 
 	// step 2
-	resp, err := comm.HttpClient(redirect).Do(request)
-	if err != nil {
-		log.Println(err.Error())
-		http.Error(rw, err.Error(), http.StatusInternalServerError)
+	if proxyrsp.err != nil {
+		log.Println(proxyrsp.err.Error())
+		http.Error(rw, proxyrsp.err.Error(), http.StatusInternalServerError)
 		return
 	}
-	defer resp.Body.Close()
 
 	// step 3
-	for key, value := range resp.Header {
+	for key, value := range proxyrsp.header {
 		for _, v := range value {
 			rw.Header().Add(key, v)
 		}
 	}
 
-	rw.WriteHeader(resp.StatusCode)
-	io.Copy(rw, resp.Body)
+	rw.WriteHeader(proxyrsp.status)
+	rw.Write(proxyrsp.body)
 }
 
 func NewHttpProxy(addr string, fun SELECT_ADDR) *HttpProxy {
@@ -69,9 +155,18 @@ func NewHttpProxy(addr string, fun SELECT_ADDR) *HttpProxy {
 		return nil
 	}
 
-	log.Printf("Http Proxy Listen : %s\r\n", addr)
+	log.Printf("Http Proxy Listen %s\r\n", addr)
 
 	proxy.Svc = &http.Server{Handler: proxy}
+
+	proxy.GoCnt = 10
+	proxy.Que = make(chan *HttpRequest, 100)
+	proxy.Stop = make(chan struct{}, proxy.GoCnt)
+
+	proxy.Wait.Add(proxy.GoCnt)
+	for i := 0; i < proxy.GoCnt; i++ {
+		go proxy.Process()
+	}
 
 	go proxy.Svc.Serve(lis)
 
@@ -79,5 +174,12 @@ func NewHttpProxy(addr string, fun SELECT_ADDR) *HttpProxy {
 }
 
 func (h *HttpProxy) Close() {
+
+	log.Println("Http Proxy Shut Down!", h.Addr)
+
 	h.Svc.Close()
+	for i := 0; i < h.GoCnt; i++ {
+		h.Stop <- struct{}{}
+	}
+	h.Wait.Wait()
 }
