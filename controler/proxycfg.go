@@ -46,7 +46,7 @@ func ProxyCfgLoadFromFile(filename string) error {
 	}
 
 	for svc, _ := range gProxyCfgMap {
-		fmt.Printf("load server(%s %s) proxy cfg from file success!\r\n",
+		log.Printf("load server(%s %s) proxy cfg from file success!\r\n",
 			svc.Name, svc.Version)
 	}
 

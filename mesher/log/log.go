@@ -4,7 +4,29 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"runtime/debug"
 )
+
+type LOG_LEVEL int
+
+const (
+	INFO LOG_LEVEL = iota
+	WARNING
+	ERROR
+	EXCEPT
+)
+
+func loglevel(level LOG_LEVEL) string {
+	if level == INFO {
+		return "INFO"
+	} else if level == WARNING {
+		return "WARNING"
+	} else if level == ERROR {
+		return "ERROR"
+	} else {
+		return "EXCEPT"
+	}
+}
 
 var logfile *os.File
 
@@ -41,4 +63,22 @@ func SetLogFile(name string) error {
 	log.SetOutput(logfile)
 
 	return nil
+}
+
+func Println(level LOG_LEVEL, v ...interface{}) {
+	output := fmt.Sprintf("[%s]", loglevel(level))
+	output += fmt.Sprintln(v...)
+	if level >= ERROR {
+		output += fmt.Sprintln(string(debug.Stack()))
+	}
+	log.Println(output)
+}
+
+func Printf(level LOG_LEVEL, format string, v ...interface{}) {
+	output := fmt.Sprintf("[%s]", loglevel(level))
+	output += fmt.Sprintf(format, v...)
+	if level >= ERROR {
+		output += fmt.Sprintln(string(debug.Stack()))
+	}
+	log.Println(output)
 }
