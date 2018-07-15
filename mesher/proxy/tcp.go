@@ -2,11 +2,12 @@ package proxy
 
 import (
 	"io"
-	"log"
 	"net"
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"github.com/lixiangyun/go-mesh/mesher/log"
 )
 
 type connect struct {
@@ -36,11 +37,11 @@ func NewTcpProxy(addr string, fun SELECT_ADDR) *TcpProxy {
 
 	listen, err := net.Listen("tcp", proxy.ListenAddr)
 	if err != nil {
-		log.Println(err.Error())
+		log.Println(log.ERROR, err.Error())
 		return nil
 	}
 
-	log.Printf("Tcp Proxy Listen : %s\r\n", addr)
+	log.Printf(log.INFO, "Tcp Proxy Listen : %s\r\n", addr)
 
 	proxy.listen = listen
 
@@ -78,7 +79,7 @@ func tcpChannel(localconn net.Conn, remoteconn net.Conn, wait *sync.WaitGroup) {
 		cnt, err := localconn.Read(buf[0:])
 		if err != nil {
 			if err != io.EOF {
-				log.Println(err.Error())
+				log.Println(log.ERROR, err.Error())
 			}
 			return
 		}
@@ -86,7 +87,7 @@ func tcpChannel(localconn net.Conn, remoteconn net.Conn, wait *sync.WaitGroup) {
 		err = writeFull(remoteconn, buf[0:cnt])
 		if err != nil {
 			if err != io.EOF {
-				log.Println(err.Error())
+				log.Println(log.ERROR, err.Error())
 			}
 			return
 		}
@@ -100,7 +101,8 @@ func (t *TcpProxy) tcpProxyProcess(wait *sync.WaitGroup, conn *connect) {
 
 	defer wait.Done()
 
-	log.Println("new connect. ", conn.conn1.RemoteAddr(), " -> ", conn.conn2.RemoteAddr())
+	log.Printf(log.INFO, "net connect %s -> %s.\r\n",
+		conn.conn1.RemoteAddr(), conn.conn2.RemoteAddr())
 
 	syncSem.Add(2)
 
@@ -113,7 +115,8 @@ func (t *TcpProxy) tcpProxyProcess(wait *sync.WaitGroup, conn *connect) {
 	delete(t.connbuf, conn.sessionID)
 	t.Unlock()
 
-	log.Println("close connect. ", conn.conn1.RemoteAddr(), " -> ", conn.conn2.RemoteAddr())
+	log.Printf(log.INFO, "close connect %s -> %s.\r\n",
+		conn.conn1.RemoteAddr(), conn.conn2.RemoteAddr())
 }
 
 // 正向tcp代理启动和处理入口
@@ -127,7 +130,7 @@ func (t *TcpProxy) start() {
 
 		localconn, err := t.listen.Accept()
 		if err != nil {
-			log.Println(err.Error())
+			log.Println(log.ERROR, err.Error())
 
 			if delaytime == 0 {
 				delaytime = 5 * time.Millisecond
@@ -140,7 +143,7 @@ func (t *TcpProxy) start() {
 
 		remoteconn, err := net.Dial("tcp", t.SelectAddr())
 		if err != nil {
-			log.Println(err.Error())
+			log.Println(log.ERROR, err.Error())
 			localconn.Close()
 
 			if delaytime == 0 {

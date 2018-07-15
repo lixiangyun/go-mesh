@@ -2,8 +2,9 @@ package stat
 
 import (
 	"fmt"
-	"log"
 	"time"
+
+	"github.com/lixiangyun/go-mesh/mesher/log"
 )
 
 type Item struct {
@@ -70,7 +71,7 @@ func (s *Stat) display() {
 				now.Div(s.interval)
 				str := now.Format()
 
-				log.Printf("Stat: %s\r\n", str)
+				log.Printf(log.INFO, "Stat: %s\r\n", str)
 
 				s.old = s.now
 

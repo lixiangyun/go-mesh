@@ -1,5 +1,8 @@
 set MESH_HOME=%CD%
 
+cd %MESH_HOME%\etcd
+start .\etcd
+
 cd %MESH_HOME%\bin
 
 start .\controler.exe

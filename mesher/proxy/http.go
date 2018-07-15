@@ -3,12 +3,12 @@ package proxy
 import (
 	"bytes"
 	"io/ioutil"
-	"log"
 	"net"
 	"net/http"
 	"sync"
 
 	"github.com/lixiangyun/go-mesh/mesher/comm"
+	"github.com/lixiangyun/go-mesh/mesher/log"
 )
 
 type HttpProxy struct {
@@ -117,7 +117,7 @@ func (h *HttpProxy) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 
 	proxyreq.body, err = ioutil.ReadAll(req.Body)
 	if err != nil {
-		log.Println(err.Error())
+		log.Println(log.ERROR, err.Error())
 		http.Error(rw, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -127,7 +127,7 @@ func (h *HttpProxy) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 
 	// step 2
 	if proxyrsp.err != nil {
-		log.Println(proxyrsp.err.Error())
+		log.Println(log.ERROR, proxyrsp.err.Error())
 		http.Error(rw, proxyrsp.err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -151,11 +151,11 @@ func NewHttpProxy(addr string, fun SELECT_ADDR) *HttpProxy {
 
 	lis, err := net.Listen("tcp", proxy.Addr)
 	if err != nil {
-		log.Println("http listen failed!", err.Error())
+		log.Println(log.ERROR, "http listen failed!", err.Error())
 		return nil
 	}
 
-	log.Printf("Http Proxy Listen %s\r\n", addr)
+	log.Printf(log.INFO, "Http Proxy Listen %s\r\n", addr)
 
 	proxy.Svc = &http.Server{Handler: proxy}
 
@@ -175,7 +175,7 @@ func NewHttpProxy(addr string, fun SELECT_ADDR) *HttpProxy {
 
 func (h *HttpProxy) Close() {
 
-	log.Println("Http Proxy Shut Down!", h.Addr)
+	log.Println(log.INFO, "Http Proxy Shut Down!", h.Addr)
 
 	h.Svc.Close()
 	for i := 0; i < h.GoCnt; i++ {

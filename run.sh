@@ -6,6 +6,9 @@ killall demohttp
 killall demotcp
 killall mesher
 
+cd $MESH_HOME/etcd
+nohup ./etcd &
+
 cd $MESH_HOME/bin
 
 nohup ./controler &

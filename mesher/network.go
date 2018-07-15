@@ -1,9 +1,10 @@
 package main
 
 import (
-	"log"
 	"net"
 	"strings"
+
+	"github.com/lixiangyun/go-mesh/mesher/log"
 )
 
 var gLocalIp []string
@@ -14,7 +15,7 @@ func init() {
 
 	addrSlice, err := net.InterfaceAddrs()
 	if nil != err {
-		log.Println("Get local IP addr failed!!!")
+		log.Println(log.WARNING, "Get local IP addr failed!!!")
 		return
 	}
 
@@ -33,5 +34,5 @@ func SetNetWork(addr string) {
 	if addr != "" {
 		gLocalIp = strings.Split(addr, ",")
 	}
-	log.Printf("NetWork %+v\r\n", gLocalIp)
+	log.Printf(log.INFO, "NetWork %+v\r\n", gLocalIp)
 }

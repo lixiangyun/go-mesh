@@ -2,12 +2,12 @@ package main
 
 import (
 	"fmt"
-	"log"
 	"strings"
 	"time"
 
 	"github.com/lixiangyun/go-mesh/mesher/api"
 	"github.com/lixiangyun/go-mesh/mesher/lb"
+	"github.com/lixiangyun/go-mesh/mesher/log"
 	"github.com/lixiangyun/go-mesh/mesher/proxy"
 )
 
@@ -142,7 +142,7 @@ func NewSvcCluster(svccfg api.Server) *SvcCluster {
 
 	instances, err := api.ServerQuery(gControlerAddr, svccfg.Svc)
 	if err != nil {
-		log.Printf("server(%v) query failed! (%s)", svccfg.Svc, err.Error())
+		log.Printf(log.ERROR, "server(%v) query failed! (%s)", svccfg.Svc, err.Error())
 	}
 
 	svcCluster.Instance = instances
@@ -191,7 +191,8 @@ func FlashSvcCluster(svcCluster *SvcCluster) {
 
 	instances, err := api.ServerQuery(gControlerAddr, svcCluster.Svc)
 	if err != nil {
-		log.Printf("server(%v) query failed! (%s)", svcCluster.Svc, err.Error())
+		log.Printf(log.ERROR, "server(%v) query failed! (%s)",
+			svcCluster.Svc, err.Error())
 		return
 	}
 
@@ -255,7 +256,8 @@ func MesherStart(name, version string, addr string) {
 
 	var errcnt int
 
-	log.Printf("[%s %s] [%s %s]\r\n", BIN_NAME, BIN_VER, SERVER_NAME, SERVER_VERSION)
+	log.Printf(log.INFO, "[%s %s] [%s %s]\r\n",
+		BIN_NAME, BIN_VER, SERVER_NAME, SERVER_VERSION)
 
 	gControlerAddr = addr
 
@@ -267,13 +269,14 @@ func MesherStart(name, version string, addr string) {
 		if errcnt > 0 {
 			time.Sleep(3 * time.Second)
 		} else if errcnt > 10 {
-			log.Println("retry same times and continue failed! exit mesher proess!")
+			log.Println(log.EXCEPT,
+				"retry same times and continue failed! exit mesher proess!")
 			return
 		}
 
 		proxycfg, err := api.LoadProxyCfg(gControlerAddr, svctype)
 		if err != nil {
-			log.Println("load proxy cfg from controler failed! ", err.Error())
+			log.Println(log.ERROR, "load proxy cfg from controler failed! ", err.Error())
 			errcnt++
 			continue
 		}
@@ -284,19 +287,19 @@ func MesherStart(name, version string, addr string) {
 
 		err = api.ServerRegister(gControlerAddr, svctype, instance)
 		if err != nil {
-			log.Println("server register failed! ", err.Error())
+			log.Println(log.ERROR, "server register failed! ", err.Error())
 			errcnt++
 			continue
 		}
 
 		if !api.InstanceCompare(gProxyMap.Instance, *instance) {
-			log.Println("get instance ", instance.ID)
+			log.Println(log.INFO, "get instance ", instance.ID)
 			gProxyMap.Instance = *instance
 		}
 
 		err = UpdateProxyChanel(proxycfg)
 		if err != nil {
-			log.Println(err.Error())
+			log.Println(log.ERROR, err.Error())
 			errcnt++
 			continue
 		}

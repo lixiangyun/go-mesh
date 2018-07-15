@@ -57,7 +57,6 @@ func main() {
 	if LOG_FILE == "" {
 		LOG_FILE = fmt.Sprintf("mesher_%s_%s.log", SERVER_NAME, SERVER_VERSION)
 	}
-
 	log.SetLogFile(LOG_FILE)
 
 	SetNetWork(NETWORK_IP)
