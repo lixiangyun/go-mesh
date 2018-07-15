@@ -3,11 +3,10 @@ package etcd
 import (
 	"context"
 	"errors"
-	"log"
 
 	v3 "github.com/coreos/etcd/clientv3"
-
 	mvcc "github.com/coreos/etcd/mvcc/mvccpb"
+	"github.com/lixiangyun/go-mesh/mesher/log"
 )
 
 const (
@@ -138,7 +137,7 @@ func KeyValueWatch(ctx context.Context, key string) <-chan KvWatchRsq {
 					case mvcc.DELETE:
 						{
 							if event.PrevKv == nil {
-								log.Println("prev kv is not exist!")
+								log.Println(log.ERROR, "prev kv is not exist!")
 								continue
 							}
 

@@ -4,12 +4,12 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"log"
 	"sync"
 	"time"
 
 	v3 "github.com/coreos/etcd/clientv3"
 	mvcc "github.com/coreos/etcd/mvcc/mvccpb"
+	"github.com/lixiangyun/go-mesh/mesher/log"
 )
 
 const (
@@ -100,7 +100,7 @@ func keepalive(ctrl *InstanceCtrl) {
 			if err != nil {
 				trycnt++
 				if trycnt > 3 {
-					log.Println("instance " + ctrl.inst.ID + " heartbeat fail!")
+					log.Println(log.ERROR, "instance "+ctrl.inst.ID+" heartbeat fail!")
 					return
 				}
 				continue
@@ -109,7 +109,7 @@ func keepalive(ctrl *InstanceCtrl) {
 
 		case <-ctrl.stop:
 			{
-				log.Println("instance " + ctrl.inst.ID + " is stop to heartbeat!")
+				log.Println(log.WARNING, "instance "+ctrl.inst.ID+" is stop to heartbeat!")
 				return
 			}
 		}
@@ -136,7 +136,7 @@ func ServcieRegister(name string, endpoints []string) (InstanceID, error) {
 	}
 
 	if resp.Succeeded {
-		log.Println("register service " + name + "success!")
+		log.Println(log.INFO, "register service "+name+"success!")
 	}
 
 	for {
@@ -182,7 +182,7 @@ func ServcieRegister(name string, endpoints []string) (InstanceID, error) {
 
 			go keepalive(instctrl)
 
-			log.Println("register instance  " + inst.ID + "success!")
+			log.Println(log.INFO, "register instance  "+inst.ID+"success!")
 
 			return inst.ID, nil
 		}
@@ -211,7 +211,7 @@ func instanceUpdate(ctrl *InstanceCtrl) (*Instance, error) {
 
 	if resp.Succeeded {
 		ctrl.inst.modversion = resp.Header.GetRevision()
-		log.Println("update instance " + ctrl.inst.ID + " success!")
+		log.Println(log.INFO, "update instance "+ctrl.inst.ID+" success!")
 		return nil, nil
 	}
 
@@ -311,7 +311,7 @@ func ServiceWatch(name string) <-chan SvcWatchRsq {
 				case mvcc.DELETE:
 					{
 						if event.PrevKv == nil {
-							log.Println("prev kv is not exist!")
+							log.Println(log.ERROR, "prev kv is not exist!")
 							continue
 						}
 

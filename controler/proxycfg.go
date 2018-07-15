@@ -4,10 +4,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
-	"log"
 	"net/http"
 
 	"github.com/lixiangyun/go-mesh/mesher/api"
+	"github.com/lixiangyun/go-mesh/mesher/log"
 )
 
 type CfgItem struct {
@@ -46,7 +46,7 @@ func ProxyCfgLoadFromFile(filename string) error {
 	}
 
 	for svc, _ := range gProxyCfgMap {
-		log.Printf("load server(%s %s) proxy cfg from file success!\r\n",
+		log.Printf(log.INFO, "load server(%s %s) proxy cfg from file success!\r\n",
 			svc.Name, svc.Version)
 	}
 
@@ -63,7 +63,7 @@ func ProxyCfgHandler(rw http.ResponseWriter, req *http.Request) {
 	if servername == "" || serverversion == "" {
 		err := fmt.Sprintf("have not found \"X-Server-Name\" or \"X-Server-Version\" in request header!\r\n")
 		http.Error(rw, err, http.StatusBadRequest)
-		log.Println(err)
+		log.Println(log.ERROR, err)
 		return
 	}
 	svc := api.SvcType{Name: servername, Version: serverversion}
@@ -74,14 +74,14 @@ func ProxyCfgHandler(rw http.ResponseWriter, req *http.Request) {
 		if b == false {
 			err := fmt.Sprintf("can not found (%s %s) proxy cfg on db base!\r\n", svc.Name, svc.Version)
 			http.Error(rw, err, http.StatusNotFound)
-			log.Println(err)
+			log.Println(log.ERROR, err)
 			return
 		}
 
 		body, err := json.Marshal(proxycfg)
 		if err != nil {
 			http.Error(rw, err.Error(), http.StatusInternalServerError)
-			log.Println(err.Error())
+			log.Println(log.ERROR, err.Error())
 			return
 		}
 
@@ -89,12 +89,12 @@ func ProxyCfgHandler(rw http.ResponseWriter, req *http.Request) {
 
 		cnt, err := rw.Write(body)
 		if err != nil {
-			log.Println(err.Error())
+			log.Println(log.ERROR, err.Error())
 		} else if cnt != len(body) {
-			log.Println("write to body not finish!")
+			log.Println(log.WARNING, "write to body not finish!")
 		}
 
-		log.Printf("server (%s %s) get proxy cfg success!\r\n", svc.Name, svc.Version)
+		log.Printf(log.INFO, "server (%s %s) get proxy cfg success!\r\n", svc.Name, svc.Version)
 
 	} else if req.Method == "POST" {
 
@@ -103,14 +103,14 @@ func ProxyCfgHandler(rw http.ResponseWriter, req *http.Request) {
 		body, err := ioutil.ReadAll(req.Body)
 		if err != nil {
 			http.Error(rw, err.Error(), http.StatusBadRequest)
-			log.Println(err.Error())
+			log.Println(log.ERROR, err.Error())
 			return
 		}
 
 		err = json.Unmarshal(body, proxycfg)
 		if err != nil {
 			http.Error(rw, err.Error(), http.StatusBadRequest)
-			log.Println(err.Error())
+			log.Println(log.ERROR, err.Error())
 			return
 		}
 
@@ -118,11 +118,12 @@ func ProxyCfgHandler(rw http.ResponseWriter, req *http.Request) {
 
 		rw.WriteHeader(http.StatusOK)
 
-		log.Printf("server (%s %s) post proxy cfg success!\r\n", svc.Name, svc.Version)
+		log.Printf(log.INFO, "server (%s %s) post proxy cfg success!\r\n",
+			svc.Name, svc.Version)
 
 	} else {
 		err := fmt.Sprintf("method (%s) is invalid!\r\n", req.Method)
 		http.Error(rw, err, http.StatusNotFound)
-		log.Println(err)
+		log.Println(log.ERROR, err)
 	}
 }
