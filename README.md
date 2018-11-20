@@ -1,6 +1,8 @@
 # go-mesh
 service mesh base on golang
 
+![](https://travis-ci.com/lixiangyun/go-mesh.svg?branch=master)
+
 ## step1 clone
 
 ```
