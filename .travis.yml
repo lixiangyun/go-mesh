@@ -1,0 +1,14 @@
+language: go
+
+go:
+  - "1.x"
+  - "1.8"
+  - "1.10.x"
+  - master
+
+script:
+  - go build -v -o control_bin ./controler/
+  - go build -v -o mesher_bin ./mesher/
+  - go build -v -o demo_bin ./example/demo
+  - go build -v -o demohttp_bin ./example/demohttp
+  - go build -v -o demotcp_bin ./example/demotcp
